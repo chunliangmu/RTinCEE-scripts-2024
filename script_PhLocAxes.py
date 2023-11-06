@@ -284,13 +284,13 @@ if __name__ == '__main__':
             # multi-process
 
             args = [
-                job_profile,
+                (job_profile,
                 file_index,
                 rays_dir_def,
                 eos,
                 PHOTOSPHERE_TAU,
-                0
-                for file_index in file_indexes
+                0,
+                ) for file_index in file_indexes
             ]
 
             with Pool(processes=NPROCESSES) as pool:
