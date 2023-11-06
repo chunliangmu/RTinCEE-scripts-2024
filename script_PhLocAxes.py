@@ -3,7 +3,7 @@
 
 # # Main
 
-# In[1]:
+# In[2]:
 
 
 """Scripts for analyzing of phantom outputs.
@@ -18,7 +18,7 @@ It does so by plotting photosphere intersection with traced rays originating fro
 
 # ## Imports & Settings
 
-# In[2]:
+# In[3]:
 
 
 #%matplotlib inline
@@ -33,7 +33,7 @@ import matplotlib as mpl
 #from moviepy.editor import ImageSequenceClip
 
 
-# In[3]:
+# In[4]:
 
 
 # import modules listed in ./lib/
@@ -60,7 +60,7 @@ from lib.clmuphantomlib.log import error, warn, note, debug_info
 #     #    f"\n{SRC_LIB_PATH = }\n"
 #     #)
 
-# In[4]:
+# In[5]:
 
 
 # parallels & optimizations
@@ -73,7 +73,7 @@ from lib.clmuphantomlib.log import error, warn, note, debug_info
 #from numba import njit, prange
 
 
-from multiprocessing import cpu_count, Process, Queue
+from multiprocessing import cpu_count, Pool #Process, Queue
 
 NPROCESSES = cpu_count()
 if NPROCESSES is None:
@@ -81,7 +81,7 @@ if NPROCESSES is None:
 NPROCESSES = max(NPROCESSES, 1)
 
 
-# In[5]:
+# In[6]:
 
 
 # settings
@@ -282,26 +282,28 @@ if __name__ == '__main__':
         else:
             
             # multi-process
-            
-            file_indexes_list = np.array_split(file_indexes, NPROCESSES)
-            processes_list = []
-            for i, file_indexes in enumerate(file_indexes_list):
-                processes_list.append(
-                    Process(
-                        target=write_ph_loc_axes,
-                        kwargs={'job_profile': job_profile, 'file_indexes': file_indexes, 'rays_dir_def': rays_dir_def,
-                                'eos': eos, 'photosphere_tau': PHOTOSPHERE_TAU, 'iverbose': 0,
-                        },
-                    )
-                )
-        
-            for process in processes_list:
-                process.start()
-        
-            for process in processes_list:
-                process.join()
+
+            args = [
+                job_profile,
+                file_index,
+                rays_dir_def,
+                eos,
+                PHOTOSPHERE_TAU,
+                0
+                for file_index in file_indexes
+            ]
+
+            with Pool(processes=NPROCESSES) as pool:
+                pool.starmap(write_ph_loc_axes, args)
     
     
+
+
+# In[12]:
+
+
+file_indexes = JOB_PROFILES[0]['file_indexes']
+file_indexes[:, np.newaxis].tolist()
 
 
 # In[32]:
