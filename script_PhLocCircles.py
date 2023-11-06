@@ -162,7 +162,7 @@ if iverbose >= 2:
 
 # ## Get photosphere locations
 
-# In[ ]:
+# In[6]:
 
 
 def _get_mpdf_photosphere_xsec_subprocess(
@@ -218,7 +218,7 @@ def _get_mpdf_photosphere_xsec_subprocess(
     return photosphere
 
 
-# In[ ]:
+# In[7]:
 
 
 # this func used to be called as get_mpdf_fig_photosphere_cross_section_R1_xyz
@@ -383,41 +383,7 @@ def get_mpdf_photosphere_xsec(
     return photospheres #, plane_orig_vec
 
 
-#     def json_dump_dict_of_np_array(data, outfile, **kwargs):
-#         
-#         if issubclass(type(data), dict):
-#             #outdata = data.copy()   # don't do this because the copy is shallow -
-#                                      #  the real data in the second level are still not copied but referenced
-#             outdata = {}
-#             for key_0 in data.keys():
-#                 if issubclass(type(data[key_0]), dict):
-#                     outdata[key_0] = data[key_0].copy()
-#                     for key_1 in outdata[key_0].keys():
-#                         if issubclass(type(outdata[key_0][key_1]), np.ndarray):
-#                             outdata[key_0][key_1] = outdata[key_0][key_1].tolist()
-#                 else:
-#                     outdata[key_0] = data[key_0]
-#         else:
-#             outdata = data
-#                     
-#         return json.dump(outdata, outfile, **kwargs)
-#         
-#     def save_photospheres(photospheres, filename:str, metadata: dict):
-#         with open(filename, 'w') as f:
-#             ans = mupl.json_dump(photospheres, f, metadata)
-#         return ans
-#     
-#     def read_photospheres(filename:str):
-#         with open(filename, 'r') as f:
-#             photospheres = json.load(f)
-#         if issubclass(type(photospheres), dict):
-#             for key_0 in photospheres.keys():
-#                 for key_1 in photospheres[key_0].keys():
-#                     if issubclass(type(photospheres[key_0][key_1]), list):
-#                         photospheres[key_0][key_1] = np.array(photospheres[key_0][key_1])
-#         return photospheres
-
-# In[ ]:
+# In[9]:
 
 
 def plot_mpdf_photosphere_xsec(
@@ -505,6 +471,7 @@ def plot_mpdf_photosphere_xsec(
     ylim = xlim
     x = photospheres['ph_vars']['xsec_loc'][:, 0].to(unitsOut['dist'])
     y = photospheres['ph_vars']['xsec_loc'][:, 1].to(unitsOut['dist'])
+    time = photospheres['dump_info']['time_yr'  ].to(unitsOut['time'])
 
     outfilename_vectxt = f"R1-{plane_axes[0]}{plane_axes[1]}{plane_axes[2]}"
 
@@ -536,7 +503,7 @@ def plot_mpdf_photosphere_xsec(
     ax.set_ylabel(f"{plane_axes[1]} / {unitsOutTxt['dist']}")
     ax.text(
         0.98, 0.98,
-        f"Time = {photospheres['dump_info']['time_yr']:.1f} {units.yr.to_string('latex_inline')}\n" + \
+        f"Time = {time:.1f}\n" + \
         f" $R_{{\\rm ph}} = {(np.average(photospheres['ph_vars']['R1'][:-1]**2)**0.5).to_value(unitsOut['dist']):.0f}" + \
         f" \\pm {np.std(photospheres['ph_vars']['R1']).to_value(unitsOut['dist']):.0f} $ {unitsOutTxt['dist']}",
         color = "black", ha = 'right', va = 'top',
@@ -567,7 +534,7 @@ def plot_mpdf_photosphere_xsec(
     return fig, ax, outfilename
 
 
-# In[ ]:
+# In[9]:
 
 
 # main process
@@ -618,26 +585,28 @@ if __name__ == '__main__':
                         mupl.json_dump(photospheres, f, metadata)
                     
     
-                fig, ax, outfilename = plot_mpdf_photosphere_xsec(
-                    photospheres= photospheres,
-                    job_name    = job_name,
-                    job_index   = file_index,
-                    plot_title_suffix=job_profile['plot_title_suffix'],
-                    box_lim     = box_lim,
-                    unitsOut    = unitsOut,
-                    outfilename_noext = outfilename_noext,
-                )
-                plt.close(fig)
-                outfilenames_dict[plane_axes].append(outfilename)
-                print(f"Done: {outfilename};")
+                #fig, ax, outfilename = plot_mpdf_photosphere_xsec(
+                #    photospheres= photospheres,
+                #    job_name    = job_name,
+                #    job_index   = file_index,
+                #    plot_title_suffix=job_profile['plot_title_suffix'],
+                #    box_lim     = box_lim,
+                #    unitsOut    = unitsOut,
+                #    outfilename_noext = outfilename_noext,
+                #)
+                #plt.close(fig)
+                #outfilenames_dict[plane_axes].append(outfilename)
+                #print(f"Done: {outfilename};")
     
         # Make movie
     
         for plane_axes in plane_axes_list:
             outfilename_vectxt = f"R1-{plane_axes}"
-            with ImageSequenceClip(outfilenames_dict[plane_axes], fps=fps) as vid:
-                moviefilename = f"{job_profile['job_name']}__photosphere-xsec__{outfilename_vectxt}__movie.mp4"
-                vid.write_videofile(moviefilename)
+            #with ImageSequenceClip(outfilenames_dict[plane_axes], fps=fps) as vid:
+            #    moviefilename = f"{job_profile['job_name']}__photosphere-xsec__{outfilename_vectxt}__movie.mp4"
+            #    vid.write_videofile(moviefilename)
+
+    print("\n\n\n*** All Done. ***\n\n\n")
 
 
 # In[ ]:
