@@ -239,6 +239,12 @@ def write_ph_loc_axes(
     return None
 
 
+# In[ ]:
+
+
+
+
+
 # In[9]:
 
 
@@ -283,9 +289,9 @@ if __name__ == '__main__':
             
             # multi-process
 
-            args = [
-                (job_profile,
-                file_index,
+            args = [(
+                job_profile,
+                [file_index],
                 rays_dir_def,
                 eos,
                 PHOTOSPHERE_TAU,
@@ -297,13 +303,6 @@ if __name__ == '__main__':
                 pool.starmap(write_ph_loc_axes, args)
     
     
-
-
-# In[12]:
-
-
-file_indexes = JOB_PROFILES[0]['file_indexes']
-file_indexes[:, np.newaxis].tolist()
 
 
 # In[32]:
