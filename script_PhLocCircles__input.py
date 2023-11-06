@@ -24,6 +24,8 @@ fps = 10
 
 unitsOut = {
     'dist': units.au,
+    'time': units.year,
+    'temp': units.K,
 }
 
 use_saved_jsons = False
