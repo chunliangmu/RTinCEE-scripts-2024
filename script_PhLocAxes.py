@@ -1,9 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# # Main
-
-# In[2]:
+# In[1]:
 
 
 """Scripts for analyzing of phantom outputs.
@@ -18,7 +16,7 @@ It does so by plotting photosphere intersection with traced rays originating fro
 
 # ## Imports & Settings
 
-# In[3]:
+# In[2]:
 
 
 #%matplotlib inline
@@ -33,7 +31,7 @@ import matplotlib as mpl
 #from moviepy.editor import ImageSequenceClip
 
 
-# In[4]:
+# In[15]:
 
 
 # import modules listed in ./lib/
@@ -42,6 +40,7 @@ from lib import clmuphantomlib as mupl
 from lib.clmuphantomlib.readwrite import json_load, json_dump
 from lib.clmuphantomlib.settings import DEFAULT_SETTINGS as settings
 from lib.clmuphantomlib.log import error, warn, note, debug_info
+from lib.clmuphantomlib.units_util import set_as_quantity
 
 
 #     ## import modules in arbitrary directory
@@ -60,7 +59,7 @@ from lib.clmuphantomlib.log import error, warn, note, debug_info
 #     #    f"\n{SRC_LIB_PATH = }\n"
 #     #)
 
-# In[5]:
+# In[4]:
 
 
 # parallels & optimizations
@@ -81,7 +80,7 @@ if NPROCESSES is None:
 NPROCESSES = max(NPROCESSES, 1)
 
 
-# In[6]:
+# In[5]:
 
 
 # settings
@@ -111,7 +110,7 @@ if iverbose >= 2:
 
 # ## Photosphere size vs time
 
-# In[6]:
+# In[17]:
 
 
 def write_ph_loc_axes(
@@ -215,7 +214,7 @@ def write_ph_loc_axes(
                     f"{ray = }"
                 )
             pts_on_ray, dtaus, pts_order = mupl.get_optical_depth_by_ray_tracing_3D(sdf=sdf, ray=ray)
-            photosphere, waypts_list = mupl.get_photosphere_on_ray(
+            photosphere, (pts_waypts, pts_waypts_t, taus_waypts) = mupl.get_photosphere_on_ray(
                 pts_on_ray, dtaus, pts_order, sdf, ray,
                 calc_params = ['loc', 'R1', 'rho', 'u', 'h', 'T'],
                 hfact = hfact, mpart=mpart, eos=eos, sdf_units=mpdf.units,
@@ -223,6 +222,13 @@ def write_ph_loc_axes(
             )
             photosphere_pars['data'][key] = photosphere
             photosphere_pars['data'][key]['size'] = photosphere['R1']
+            photosphere_pars['data'][key][  'waypts_t'] = pts_waypts_t
+            photosphere_pars['data'][key]['tau_on_ray'] = taus_waypts
+            photosphere_pars['data'][key]['rho_on_ray'] = mupl.sph_interp.get_sph_interp(sdf, 'rho', pts_waypts, iverbose=iverbose)
+            photosphere_pars['data'][key][  'u_on_ray'] = mupl.sph_interp.get_sph_interp(sdf, 'u'  , pts_waypts, iverbose=iverbose)
+            photosphere_pars['data'][key][  'T_on_ray'] = eos.get_temp(
+                set_as_quantity(photosphere['rho'], mpdf.units['density']),
+                set_as_quantity(photosphere['u']  , mpdf.units['specificEnergy']), return_as_quantity=False)
                 
             if iverbose:
                 debug_info(    # debug
@@ -239,13 +245,20 @@ def write_ph_loc_axes(
     return None
 
 
-# In[ ]:
+# ## Main
+
+# In[24]:
 
 
+do_debug = False
+if do_debug and __name__ == '__main__':
+    from script_PhLocAxes__input import JOB_PROFILES
+    JOB_PROFILES = JOB_PROFILES[3:4]
+    JOB_PROFILES[0]['file_indexes'] = (400, 500)
+    
 
 
-
-# In[9]:
+# In[18]:
 
 
 # main process
@@ -305,7 +318,7 @@ if __name__ == '__main__':
     
 
 
-# In[32]:
+# In[19]:
 
 
 if __name__ == '__main__':
@@ -333,6 +346,11 @@ if __name__ == '__main__':
                 'u'   : [],
                 'h'   : [],
                 'T'   : [],
+                'waypts_t'  : [],
+                'tau_on_ray': [],
+                'rho_on_ray': [],
+                'u_on_ray'  : [],
+                'T_on_ray'  : [],
             }
             photosphere_pars_all['rays'][key] = []
     
@@ -364,10 +382,4 @@ if __name__ == '__main__':
 
 
     print("\n\n\n*** All Done. ***\n\n\n")
-
-
-# In[ ]:
-
-
-
 
