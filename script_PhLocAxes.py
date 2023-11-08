@@ -31,7 +31,7 @@ import matplotlib as mpl
 #from moviepy.editor import ImageSequenceClip
 
 
-# In[15]:
+# In[3]:
 
 
 # import modules listed in ./lib/
@@ -110,7 +110,7 @@ if iverbose >= 2:
 
 # ## Photosphere size vs time
 
-# In[17]:
+# In[6]:
 
 
 def write_ph_loc_axes(
@@ -222,13 +222,17 @@ def write_ph_loc_axes(
             )
             photosphere_pars['data'][key] = photosphere
             photosphere_pars['data'][key]['size'] = photosphere['R1']
-            photosphere_pars['data'][key][  'waypts_t'] = pts_waypts_t
-            photosphere_pars['data'][key]['tau_on_ray'] = taus_waypts
-            photosphere_pars['data'][key]['rho_on_ray'] = mupl.sph_interp.get_sph_interp(sdf, 'rho', pts_waypts, iverbose=iverbose)
-            photosphere_pars['data'][key][  'u_on_ray'] = mupl.sph_interp.get_sph_interp(sdf, 'u'  , pts_waypts, iverbose=iverbose)
+            R1_on_ray  = np.logspace(1, np.log10(pts_waypts_t[0]), 1000)[::-1] # , photosphere['R1'] + photosphere['h'] * 4
+            tau_on_ray = np.interp(R1_on_ray, pts_waypts_t[::-1], taus_waypts[::-1])
+            pts_on_ray = ray[0][np.newaxis, :] + R1_on_ray[:, np.newaxis] * ray_unit_vec[np.newaxis, :]
+            photosphere_pars['data'][key][ 'R1_on_ray'] = R1_on_ray
+            photosphere_pars['data'][key]['tau_on_ray'] = tau_on_ray
+            photosphere_pars['data'][key]['rho_on_ray'] = mupl.sph_interp.get_sph_interp(sdf, 'rho', pts_on_ray, iverbose=iverbose)
+            photosphere_pars['data'][key][  'u_on_ray'] = mupl.sph_interp.get_sph_interp(sdf, 'u'  , pts_on_ray, iverbose=iverbose)
             photosphere_pars['data'][key][  'T_on_ray'] = eos.get_temp(
-                set_as_quantity(photosphere['rho'], mpdf.units['density']),
-                set_as_quantity(photosphere['u']  , mpdf.units['specificEnergy']), return_as_quantity=False)
+                set_as_quantity(photosphere['rho_on_ray'], mpdf.units['density']),
+                set_as_quantity(photosphere['u_on_ray']  , mpdf.units['specificEnergy']),
+                return_as_quantity=False, bounds_error=False)
                 
             if iverbose:
                 debug_info(    # debug
@@ -239,7 +243,7 @@ def write_ph_loc_axes(
                 )
 
         with open(f"{mpdf.get_filename()}__photospherePars__xyz.json", 'w') as f:
-            json_dump(photosphere_pars, f, metadata=metadata)
+            json_dump(photosphere_pars, f, metadata=metadata, indent=None)
             if iverbose: print(f"\n\nWritten to {f.name}\n")
 
     return None
@@ -247,7 +251,7 @@ def write_ph_loc_axes(
 
 # ## Main
 
-# In[24]:
+# In[10]:
 
 
 do_debug = False
@@ -258,7 +262,7 @@ if do_debug and __name__ == '__main__':
     
 
 
-# In[18]:
+# In[8]:
 
 
 # main process
@@ -318,7 +322,7 @@ if __name__ == '__main__':
     
 
 
-# In[19]:
+# In[9]:
 
 
 if __name__ == '__main__':
@@ -346,7 +350,7 @@ if __name__ == '__main__':
                 'u'   : [],
                 'h'   : [],
                 'T'   : [],
-                'waypts_t'  : [],
+                'R1_on_ray' : [],
                 'tau_on_ray': [],
                 'rho_on_ray': [],
                 'u_on_ray'  : [],
@@ -377,9 +381,15 @@ if __name__ == '__main__':
         
         # write
         with open(f"{job_name}__photospherePars__xyz.json", 'w') as f:
-            json_dump(photosphere_pars_all, f, metadata=metadata)
+            json_dump(photosphere_pars_all, f, metadata=metadata, indent=None)
             if iverbose: print(f"\n\nWritten to {f.name}.\n")
 
 
     print("\n\n\n*** All Done. ***\n\n\n")
+
+
+# In[ ]:
+
+
+
 
