@@ -8,6 +8,14 @@ from astropy import units
 Msun_str = units.Msun.to_string('latex_inline')
 
 
+unitsOut = {
+    'dist': units.au,
+    'time': units.year,
+    'temp': units.K,
+    'density': units.g / units.cm**3,
+}
+
+
 # script input parameters
 JOB_PROFILES_LIST = (
     {
