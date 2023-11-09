@@ -3,7 +3,8 @@ Input Parameters for my scripts.
 """
 
 # imports and internal settings
-from _photosphere_jobProfiles__input import JOB_PROFILES_LIST, JOB_PROFILES_GROUPS
+from _photosphere_jobProfiles__input import unitsOut, JOB_PROFILES_LIST, JOB_PROFILES_GROUPS
+from lib.clmuphantomlib.units_util import DEFAULT_UNITS
 
 
 # script input parameters
@@ -11,5 +12,10 @@ from _photosphere_jobProfiles__input import JOB_PROFILES_LIST, JOB_PROFILES_GROU
 iverbose = 3
 
 PHOTOSPHERE_TAU = 1.0
+
+# units used in the dump file
+# *** WARNING: script does not check this yet!
+#      Change it if you are not using Rsun & Msun for phantom dumps!!!
+unitsIn = DEFAULT_UNITS
 
 JOB_PROFILES = JOB_PROFILES_LIST[:]

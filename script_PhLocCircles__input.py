@@ -3,10 +3,7 @@ Input Parameters for my scripts.
 """
 
 # imports and internal settings
-from _photosphere_jobProfiles__input import JOB_PROFILES_LIST, JOB_PROFILES_GROUPS
-import numpy as np
-from astropy import units
-Msun_str = units.Msun.to_string('latex_inline')
+from _photosphere_jobProfiles__input import unitsOut, JOB_PROFILES_LIST, JOB_PROFILES_GROUPS
 
 
 # script input parameters
@@ -30,16 +27,7 @@ box_lim_dict = { # using JOB_PROFILES_LIST['nickname'] as key
 
 fps = 10
 
-unitsOut = {
-    'dist': units.au,
-    'time': units.year,
-    'temp': units.K,
-}
-
 use_saved_jsons = False
-
-
-
 
 JOB_PROFILES = JOB_PROFILES_LIST[:]
 
