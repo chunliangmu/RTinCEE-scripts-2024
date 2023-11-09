@@ -13,6 +13,8 @@ iverbose = 3
 
 PHOTOSPHERE_TAU = 1.0
 
+fps = 10
+
 # units used in the dump file
 # *** WARNING: script does not check this yet!
 #      Change it if you are not using Rsun & Msun for phantom dumps!!!
