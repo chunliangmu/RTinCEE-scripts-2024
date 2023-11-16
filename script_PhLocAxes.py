@@ -110,14 +110,14 @@ if iverbose >= 2:
 
 # ## Photosphere size vs time
 
-# In[6]:
+# In[19]:
 
 
 def write_ph_loc_axes(
     job_profile : dict,
     file_indexes : np.ndarray,
     rays_dir_def : dict,    # dict of list
-    eos : mupl.eos_base.EoS_Base,
+    eoses : (mupl.eos_base.EoS_Base, mupl.eos_mesa.EoS_MESA_opacity),
     photosphere_tau = PHOTOSPHERE_TAU,
     iverbose : int = 2,
 ):
@@ -135,6 +135,8 @@ def write_ph_loc_axes(
     job_name = job_profile['job_name']
     X = job_profile['X']
     ieos = job_profile['ieos']
+
+    eos, eos_opacity = eoses
 
     
     # init rays directions
@@ -163,6 +165,13 @@ def write_ph_loc_axes(
             mpdf.data['gas']['T'] = mpdf.data['gas']['Tdust']
         elif 'temperature' in mpdf.data['gas'].columns:
             mpdf.data['gas']['T'] = mpdf.data['gas']['temperature']
+        if 'kappa' not in mpdf.data['gas'].keys():
+            # get kappa from mesa table in cgs units
+            mpdf.data['gas']['kappa'] = eos_opacity.get_kappa(
+                mpdf.get_val('rho', copy=False),
+                mpdf.get_val('T', copy=False),
+                return_as_quantity=False)
+        # translate to phantom units
         mpdf.calc_sdf_params(
             calc_params=['kappa',], #'R1',
             calc_params_params={'ieos': ieos, 'X':X, 'overwrite':False, 'kappa_translate_from_cgs_units':True},
@@ -216,13 +225,13 @@ def write_ph_loc_axes(
             pts_on_ray, dtaus, pts_order = mupl.get_optical_depth_by_ray_tracing_3D(sdf=sdf, ray=ray)
             photosphere, (pts_waypts, pts_waypts_t, taus_waypts) = mupl.get_photosphere_on_ray(
                 pts_on_ray, dtaus, pts_order, sdf, ray,
-                calc_params = ['loc', 'R1', 'rho', 'u', 'h', 'T'],
+                calc_params = ['loc', 'R1', 'rho', 'u', 'h', 'T', 'kappa'],
                 hfact = hfact, mpart=mpart, eos=eos, sdf_units=mpdf.units,
-                ray_unit_vec=ray_unit_vec,
+                ray_unit_vec=ray_unit_vec, iverbose=iverbose,
             )
             photosphere_pars['data'][key] = photosphere
             photosphere_pars['data'][key]['size'] = photosphere['R1']
-            R1_on_ray  = np.logspace(1, np.log10(pts_waypts_t[0]), 1000)[::-1] # , photosphere['R1'] + photosphere['h'] * 4
+            R1_on_ray  = np.logspace(1, np.log10((pts_waypts_t[0] + pts_waypts_t[1]) / 2), 1000)[::-1]
             tau_on_ray = np.interp(R1_on_ray, pts_waypts_t[::-1], taus_waypts[::-1])
             pts_on_ray = ray[0][np.newaxis, :] + R1_on_ray[:, np.newaxis] * ray_unit_vec[np.newaxis, :]
             photosphere_pars['data'][key][ 'R1_on_ray'] = R1_on_ray
@@ -233,6 +242,7 @@ def write_ph_loc_axes(
                 set_as_quantity(photosphere['rho_on_ray'], mpdf.units['density']),
                 set_as_quantity(photosphere['u_on_ray']  , mpdf.units['specificEnergy']),
                 return_as_quantity=False, bounds_error=False)
+            photosphere_pars['data'][key]['kappa_on_ray']=mupl.sph_interp.get_sph_interp(sdf,'kappa',pts_on_ray, iverbose=iverbose)
                 
             if iverbose:
                 debug_info(    # debug
@@ -251,7 +261,7 @@ def write_ph_loc_axes(
 
 # ## Main
 
-# In[10]:
+# In[7]:
 
 
 do_debug = False
@@ -262,7 +272,7 @@ if do_debug and __name__ == '__main__':
     
 
 
-# In[8]:
+# In[20]:
 
 
 # main process
@@ -291,6 +301,7 @@ if __name__ == '__main__':
     
         file_indexes = job_profile['file_indexes']
         eos = mupl.get_eos(job_profile['ieos'], job_profile['params'], settings)
+        eos_opacity = mupl.eos_mesa.EoS_MESA_opacity(job_profile['params'], settings)
     
         
         if NPROCESSES <= 1:
@@ -299,7 +310,7 @@ if __name__ == '__main__':
     
             write_ph_loc_axes(
                 job_profile = job_profile, file_indexes = file_indexes, rays_dir_def = rays_dir_def,
-                eos = eos, photosphere_tau = PHOTOSPHERE_TAU, iverbose = iverbose,
+                eoses = (eos, eos_opacity), photosphere_tau = PHOTOSPHERE_TAU, iverbose = iverbose,
             )
             
         else:
@@ -310,7 +321,7 @@ if __name__ == '__main__':
                 job_profile,
                 [file_index],
                 rays_dir_def,
-                eos,
+                (eos, eos_opacity),
                 PHOTOSPHERE_TAU,
                 0,
                 ) for file_index in file_indexes
@@ -322,7 +333,7 @@ if __name__ == '__main__':
     
 
 
-# In[9]:
+# In[21]:
 
 
 if __name__ == '__main__':
@@ -386,10 +397,4 @@ if __name__ == '__main__':
 
 
     print("\n\n\n*** All Done. ***\n\n\n")
-
-
-# In[ ]:
-
-
-
 
