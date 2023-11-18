@@ -13,6 +13,7 @@ unitsOut = {
     'time': units.year,
     'temp': units.K,
     'density': units.g / units.cm**3,
+    'opacity': units.cm**2 / units.g,
     'dimless': units.dimensionless_unscaled,
 }
 
