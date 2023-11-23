@@ -110,7 +110,7 @@ if iverbose >= 2:
 
 # ## Photosphere size vs time
 
-# In[19]:
+# In[6]:
 
 
 def write_ph_loc_axes(
@@ -170,6 +170,7 @@ def write_ph_loc_axes(
             mpdf.data['gas']['kappa'] = eos_opacity.get_kappa(
                 mpdf.get_val('rho', copy=False),
                 mpdf.get_val('T', copy=False),
+                do_extrap=True,
                 return_as_quantity=False)
         # translate to phantom units
         mpdf.calc_sdf_params(
@@ -261,18 +262,18 @@ def write_ph_loc_axes(
 
 # ## Main
 
-# In[7]:
+# In[13]:
 
 
 do_debug = False
 if do_debug and __name__ == '__main__':
     from script_PhLocAxes__input import JOB_PROFILES
     JOB_PROFILES = JOB_PROFILES[3:4]
-    JOB_PROFILES[0]['file_indexes'] = (400, 500)
+    JOB_PROFILES[0]['file_indexes'] = (400, 500, 5000)
     
 
 
-# In[20]:
+# In[11]:
 
 
 # main process
@@ -333,7 +334,7 @@ if __name__ == '__main__':
     
 
 
-# In[21]:
+# In[12]:
 
 
 if __name__ == '__main__':
@@ -397,4 +398,10 @@ if __name__ == '__main__':
 
 
     print("\n\n\n*** All Done. ***\n\n\n")
+
+
+# In[ ]:
+
+
+
 
