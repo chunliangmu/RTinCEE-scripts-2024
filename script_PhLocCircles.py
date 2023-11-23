@@ -41,8 +41,8 @@ import json
 
 # import modules listed in ./lib/
 
-from lib import clmuphantomlib as mupl
-from lib.clmuphantomlib.settings import DEFAULT_SETTINGS as settings
+from main import clmuphantomlib as mupl
+from main.clmuphantomlib.settings import DEFAULT_SETTINGS as settings
 
 
 # In[4]:
@@ -73,7 +73,7 @@ NPROCESSES = max(NPROCESSES, 1)
 #
 #   imported from script_input.py file
 
-from script_PhLocCircles__input import iverbose, PHOTOSPHERE_TAU, JOB_PROFILES
+from script_PhLocCircles__input import verbose, PHOTOSPHERE_TAU, JOB_PROFILES
 from script_PhLocCircles__input import ray_no, plane_axes_list, box_lim, fps, unitsOut, use_saved_jsons
 
 for job_profile in JOB_PROFILES:
@@ -96,7 +96,7 @@ plt.rcParams.update({'font.size': 20})
 
 
 # print debug info
-if iverbose >= 2:
+if verbose >= 2:
     print(f"{metadata = }")
     print(f"   Note: Will use {NPROCESSES} processes for parallelization")
     
@@ -121,13 +121,13 @@ if iverbose >= 2:
 #         calc_params=['T', 'kappa', 'R1'],
 #         reset_xyz_by="R1",
 #         calc_params_params={'ieos': ieos, 'X':X, 'overwrite':False, 'kappa_translate_from_cgs_units':True},
-#         iverbose=iverbose,
+#         verbose=verbose,
 #     )
 #     mpdf.plot_render(plot_title_suffix=plot_title_suffix,
 #         xlim=(-60000, 60000), ylim=(-60000, 60000),
 #         norm=mpl.colors.LogNorm(vmin=1e-25, vmax=1e-5, clip=True),
 #     )
-#     if iverbose:
+#     if verbose:
 #         print()
 #         print(mpdf.get_time())
 #         print(mpdf.data['gas'].keys())
@@ -197,7 +197,7 @@ def _get_mpdf_photosphere_xsec_subprocess(
         #    IT ONLY WORKS FOR +z DIRECTION PLANE
 
         photosphere_rho = mupl.sph_interp.get_sph_interp_phantom(sdf, 'rho' , photosphere['loc'])
-        photosphere_u = mupl.sph_interp.get_sph_interp_phantom(sdf, 'u' , photosphere['loc'], iverbose=0)
+        photosphere_u = mupl.sph_interp.get_sph_interp_phantom(sdf, 'u' , photosphere['loc'], verbose=0)
         photosphere_h   = hfact * (mpart / photosphere_rho)**(1./3.)
         photosphere['h'] = photosphere_h
         photosphere_loc_add1h = photosphere['loc'] + photosphere_h * ray_unit_vec
@@ -208,7 +208,7 @@ def _get_mpdf_photosphere_xsec_subprocess(
             photosphere['T'] = eos.get_temp(
                 rho=mupl.set_as_quantity(photosphere_rho, mpdf_units['density']),
                 u=mupl.set_as_quantity(photosphere_u, mpdf_units['specificEnergy']),
-                return_as_quantity=False, iverbose=0)
+                return_as_quantity=False, verbose=0)
         except ValueError:
             photosphere['T'] = np.nan
 
@@ -231,7 +231,7 @@ def get_mpdf_photosphere_xsec(
     ray_no : int = 60,
     photosphere_tau : float = 1.,
     nprocesses : int = 1,
-    iverbose : int = 2,
+    verbose : int = 2,
 ) -> dict:
     """Plot a single figure of the photosphere cross-section with the plane.
     
@@ -266,7 +266,7 @@ def get_mpdf_photosphere_xsec(
     nprocesses: int:
         set it > 1 to enable multiprocessing.
         
-    iverbose : int
+    verbose : int
         How much warnings, notes, and debug info to be print on screen.
 
     Returns
@@ -383,7 +383,7 @@ def get_mpdf_photosphere_xsec(
     return photospheres #, plane_orig_vec
 
 
-# In[9]:
+# In[8]:
 
 
 def plot_mpdf_photosphere_xsec(
@@ -555,7 +555,7 @@ if __name__ == '__main__':
         
         for file_index in job_profile['file_indexes']:
             # read data
-            mpdf.read(job_name, file_index, reset_xyz_by='CoM', iverbose=iverbose)
+            mpdf.read(job_name, file_index, reset_xyz_by='CoM', verbose=verbose)
             mpdf.eos = job_profile['EoS']
             if 'Tdust' in mpdf.data['gas'].columns:
                 mpdf.data['gas']['T'] = mpdf.data['gas']['Tdust']
@@ -564,7 +564,7 @@ if __name__ == '__main__':
             mpdf.calc_sdf_params(
                 calc_params=['kappa',], #'R1',
                 calc_params_params={'ieos': ieos, 'X':X, 'overwrite':False, 'kappa_translate_from_cgs_units':True},
-                iverbose=iverbose,
+                verbose=verbose,
             )
         
             for plane_axes in plane_axes_list:
@@ -579,7 +579,7 @@ if __name__ == '__main__':
                         plane_axes=plane_axes,
                         photosphere_tau = PHOTOSPHERE_TAU,
                         nprocesses = NPROCESSES,
-                        iverbose=0,
+                        verbose=0,
                     )
                     with open(f"{outfilename_noext}.json", 'w') as f:
                         mupl.json_dump(photospheres, f, metadata)

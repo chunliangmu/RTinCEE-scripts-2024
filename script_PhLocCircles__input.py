@@ -8,7 +8,7 @@ from _photosphere_jobProfiles__input import unitsOut, JOB_PROFILES_LIST, JOB_PRO
 
 # script input parameters
 
-iverbose = 3
+verbose = 3
 
 PHOTOSPHERE_TAU = 1.0
 
