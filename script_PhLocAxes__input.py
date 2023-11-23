@@ -9,7 +9,7 @@ from main.clmuphantomlib.units_util import DEFAULT_UNITS
 
 # script input parameters
 
-iverbose = 3
+verbose = 3
 
 PHOTOSPHERE_TAU = 1.0
 
