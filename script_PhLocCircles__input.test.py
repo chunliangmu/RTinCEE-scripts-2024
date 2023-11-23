@@ -10,7 +10,7 @@ Msun_str = units.Msun.to_string('latex_inline')
 
 # script input parameters
 
-iverbose = 3
+verbose = 3
 
 PHOTOSPHERE_TAU = 1.0
 
