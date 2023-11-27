@@ -106,3 +106,5 @@ JOB_PROFILES_GROUPS = {
     '2m': (JOB_PROFILES_LIST[0], JOB_PROFILES_LIST[2],),
     '4m': (JOB_PROFILES_LIST[1], JOB_PROFILES_LIST[3],),
 }
+
+JOB_PROFILES_DICT = { job_profile['nickname']: job_profile for job_profile in JOB_PROFILES_LIST }
