@@ -30,8 +30,3 @@ fps = 10
 use_saved_jsons = False
 
 JOB_PROFILES = JOB_PROFILES_LIST[:]
-
-JOB_PROFILES_GROUPS = {
-    '2m': (JOB_PROFILES_LIST[0], JOB_PROFILES_LIST[2],),
-    '4m': (JOB_PROFILES_LIST[1], JOB_PROFILES_LIST[3],),
-}

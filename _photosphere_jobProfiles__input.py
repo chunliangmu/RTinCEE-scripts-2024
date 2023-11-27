@@ -32,7 +32,7 @@ JOB_PROFILES_LIST = (
         },
         'X': 0.691,
         'name': f"Dusty 1.7{Msun_str}",
-        'nickname': '4md',
+        'nickname': '2md',
         #'fmt': '-',
         'color': 'blue',
     },
