@@ -55,7 +55,7 @@ unitsOutTxt = {  key  : unitsOut[key].to_string('latex_inline') for key in units
 
 
 plt.rcParams.update({'font.size': 20})
-if is_verbose(verbose, 'note'):
+if __name__ == '__main__' and is_verbose(verbose, 'note'):
     say('note', "script_kappaProfile", verbose, f"Will use {NPROCESSES} processes for parallelization")
 
 
@@ -193,6 +193,8 @@ if __name__ == '__main__':
         if NPROCESSES <= 1:
 
             # single process
+            if __name__ == '__main__' and is_verbose(verbose, 'note'):
+                say('note', "script_kappaProfile", verbose, f"Using single process.")
             
             outfilenames = []
             for file_index in job_profile['file_indexes']:
@@ -201,7 +203,9 @@ if __name__ == '__main__':
         else:
 
             # multi-process
-            
+            if __name__ == '__main__' and is_verbose(verbose, 'note'):
+                say('note', "script_kappaProfile", verbose, f"Using {NPROCESSES} processes.")
+                
             args = [(job_name, file_index, eos_opacity, xlims, ylim, 0) for file_index in job_profile['file_indexes']]
             with Pool(processes=NPROCESSES) as pool:
                 outfilenames = pool.starmap(plot_kappaProfile, args)
