@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[1]:
+# In[3]:
 
 
 """Scripts for analyzing of phantom outputs.
@@ -16,7 +16,7 @@ It does so by plotting photosphere intersection with traced rays originating fro
 
 # ## Imports & Settings
 
-# In[2]:
+# In[4]:
 
 
 #%matplotlib inline
@@ -31,16 +31,17 @@ import matplotlib as mpl
 #from moviepy.editor import ImageSequenceClip
 
 
-# In[3]:
+# In[5]:
 
 
 # import modules listed in ./lib/
 
-from lib import clmuphantomlib as mupl
-from lib.clmuphantomlib.readwrite import json_load, json_dump
-from lib.clmuphantomlib.settings import DEFAULT_SETTINGS as settings
-from lib.clmuphantomlib.log import error, warn, note, debug_info
-from lib.clmuphantomlib.units_util import set_as_quantity
+from main import clmuphantomlib as mupl
+from main.clmuphantomlib.readwrite import json_load, json_dump
+from main.clmuphantomlib.settings import DEFAULT_SETTINGS as settings
+from main.clmuphantomlib.log import error, warn, note, debug_info
+from main.clmuphantomlib.log import is_verbose, say
+from main.clmuphantomlib.units_util import set_as_quantity
 
 
 #     ## import modules in arbitrary directory
@@ -59,7 +60,7 @@ from lib.clmuphantomlib.units_util import set_as_quantity
 #     #    f"\n{SRC_LIB_PATH = }\n"
 #     #)
 
-# In[4]:
+# In[6]:
 
 
 # parallels & optimizations
@@ -73,21 +74,17 @@ from lib.clmuphantomlib.units_util import set_as_quantity
 
 
 from multiprocessing import cpu_count, Pool #Process, Queue
-
-NPROCESSES = cpu_count()
-if NPROCESSES is None:
-    NPROCESSES = 1
-NPROCESSES = max(NPROCESSES, 1)
+NPROCESSES = 1 if cpu_count() is None else max(cpu_count(), 1)
 
 
-# In[5]:
+# In[7]:
 
 
 # settings
 #
 #   imported from script_input.py file
 
-from script_PhLocAxes__input import iverbose, PHOTOSPHERE_TAU, JOB_PROFILES
+from script_PhLocAxes__input import verbose, PHOTOSPHERE_TAU, JOB_PROFILES
 
 
 # set metadata
@@ -101,8 +98,10 @@ plt.rcParams.update({'font.size': 20})
 
 
 # print debug info
-if iverbose >= 2:
-    print(f"   Note: Will use {NPROCESSES} processes for parallelization")
+if __name__ == '__main__' and is_verbose(verbose, 'note'):
+    # remember to check if name is '__main__' if you wanna say anything
+    #    so when you do multiprocessing the program doesn't freak out
+    say('note', "script", verbose, f"Will use {NPROCESSES} processes for parallelization")
     
 
 
@@ -119,7 +118,7 @@ def write_ph_loc_axes(
     rays_dir_def : dict,    # dict of list
     eoses : (mupl.eos_base.EoS_Base, mupl.eos_mesa.EoS_MESA_opacity),
     photosphere_tau = PHOTOSPHERE_TAU,
-    iverbose : int = 2,
+    verbose : int = 2,
 ):
 
     """Writing the photosphere locations of each dump to json files.
@@ -160,7 +159,7 @@ def write_ph_loc_axes(
             photosphere_pars['data'][key] = {}
 
         # read data
-        mpdf.read(job_name, file_index, reset_xyz_by='CoM', iverbose=iverbose)
+        mpdf.read(job_name, file_index, reset_xyz_by='CoM', verbose=verbose)
         if 'Tdust' in mpdf.data['gas'].columns:
             mpdf.data['gas']['T'] = mpdf.data['gas']['Tdust']
         elif 'temperature' in mpdf.data['gas'].columns:
@@ -176,7 +175,7 @@ def write_ph_loc_axes(
         mpdf.calc_sdf_params(
             calc_params=['kappa',], #'R1',
             calc_params_params={'ieos': ieos, 'X':X, 'overwrite':False, 'kappa_translate_from_cgs_units':True},
-            iverbose=iverbose,
+            verbose=verbose,
         )
         hfact = mpdf.params['hfact']
         mpart = mpdf.params['mass']
@@ -208,9 +207,9 @@ def write_ph_loc_axes(
             pts = np.array(sdf[['x', 'y', 'z']])    # (npart, 3)-shaped array
             pts_on_ray = mupl.get_closest_pt_on_line(pts, ray)
             sdf_selected_indices = (np.sum((pts - pts_on_ray)**2, axis=-1) <= (kernel_radius * hs)**2)
-            if iverbose:
+            if verbose:
                 debug_info(
-                    'write_ph_loc_axes()', iverbose,
+                    'write_ph_loc_axes()', verbose,
                     f"{np.count_nonzero(sdf_selected_indices)} particles are close enough to the ray to have effects."
                 )
             sdf = sdf.iloc[sdf_selected_indices]
@@ -218,9 +217,9 @@ def write_ph_loc_axes(
 
 
             # get optical depth
-            if iverbose:
+            if verbose:
                 debug_info(
-                    'write_ph_loc_axes()', iverbose,
+                    'write_ph_loc_axes()', verbose,
                     f"{ray = }"
                 )
             pts_on_ray, dtaus, pts_order = mupl.get_optical_depth_by_ray_tracing_3D(sdf=sdf, ray=ray)
@@ -228,7 +227,7 @@ def write_ph_loc_axes(
                 pts_on_ray, dtaus, pts_order, sdf, ray,
                 calc_params = ['loc', 'R1', 'rho', 'u', 'h', 'T', 'kappa'],
                 hfact = hfact, mpart=mpart, eos=eos, sdf_units=mpdf.units,
-                ray_unit_vec=ray_unit_vec, iverbose=iverbose,
+                ray_unit_vec=ray_unit_vec, verbose=verbose,
             )
             photosphere_pars['data'][key] = photosphere
             photosphere_pars['data'][key]['size'] = photosphere['R1']
@@ -237,17 +236,17 @@ def write_ph_loc_axes(
             pts_on_ray = ray[0][np.newaxis, :] + R1_on_ray[:, np.newaxis] * ray_unit_vec[np.newaxis, :]
             photosphere_pars['data'][key][ 'R1_on_ray'] = R1_on_ray
             photosphere_pars['data'][key]['tau_on_ray'] = tau_on_ray
-            photosphere_pars['data'][key]['rho_on_ray'] = mupl.sph_interp.get_sph_interp(sdf, 'rho', pts_on_ray, iverbose=iverbose)
-            photosphere_pars['data'][key][  'u_on_ray'] = mupl.sph_interp.get_sph_interp(sdf, 'u'  , pts_on_ray, iverbose=iverbose)
+            photosphere_pars['data'][key]['rho_on_ray'] = mupl.sph_interp.get_sph_interp(sdf, 'rho', pts_on_ray, verbose=verbose)
+            photosphere_pars['data'][key][  'u_on_ray'] = mupl.sph_interp.get_sph_interp(sdf, 'u'  , pts_on_ray, verbose=verbose)
             photosphere_pars['data'][key][  'T_on_ray'] = eos.get_temp(
                 set_as_quantity(photosphere['rho_on_ray'], mpdf.units['density']),
                 set_as_quantity(photosphere['u_on_ray']  , mpdf.units['specificEnergy']),
                 return_as_quantity=False, bounds_error=False)
-            photosphere_pars['data'][key]['kappa_on_ray']=mupl.sph_interp.get_sph_interp(sdf,'kappa',pts_on_ray, iverbose=iverbose)
+            photosphere_pars['data'][key]['kappa_on_ray']=mupl.sph_interp.get_sph_interp(sdf,'kappa',pts_on_ray, verbose=verbose)
                 
-            if iverbose:
+            if verbose:
                 debug_info(    # debug
-                    'write_ph_loc_axes()', iverbose,
+                    'write_ph_loc_axes()', verbose,
                     f"{photosphere_loc = }\n{photosphere_dist_to_ray0 = }\n",
                     f"{photosphere_taus = }\n",
                     f"{pts_on_ray_ordered[photosphere_loc_index:photosphere_loc_index+2] = }",
@@ -255,7 +254,7 @@ def write_ph_loc_axes(
 
         with open(f"{mpdf.get_filename()}__photospherePars__xyz.json", 'w') as f:
             json_dump(photosphere_pars, f, metadata=metadata, indent=None)
-            if iverbose: print(f"\n\nWritten to {f.name}\n")
+            if verbose: print(f"\n\nWritten to {f.name}\n")
 
     return None
 
@@ -311,7 +310,7 @@ if __name__ == '__main__':
     
             write_ph_loc_axes(
                 job_profile = job_profile, file_indexes = file_indexes, rays_dir_def = rays_dir_def,
-                eoses = (eos, eos_opacity), photosphere_tau = PHOTOSPHERE_TAU, iverbose = iverbose,
+                eoses = (eos, eos_opacity), photosphere_tau = PHOTOSPHERE_TAU, verbose = verbose,
             )
             
         else:
@@ -375,7 +374,7 @@ if __name__ == '__main__':
         for file_index in file_indexes:
             with open(f"{job_name}_{file_index:05}__photospherePars__xyz.json", 'r') as f:
                 
-                if iverbose: print(f"\n\nLoading {f.name}... ", end='')
+                if verbose: print(f"\n\nLoading {f.name}... ", end='')
                 
                 photosphere_pars = json_load(f)
                 for it in ['time_yr', 'orbsep_Rsun']:
@@ -388,13 +387,13 @@ if __name__ == '__main__':
                         photosphere_pars_all['data'][key][it].append(obj)
                     photosphere_pars_all['rays'][key].append(photosphere_pars['rays'][key]) 
     
-                if iverbose: print(f"Done.\n")
+                if verbose: print(f"Done.\n")
     
         
         # write
         with open(f"{job_name}__photospherePars__xyz.json", 'w') as f:
             json_dump(photosphere_pars_all, f, metadata=metadata, indent=None)
-            if iverbose: print(f"\n\nWritten to {f.name}.\n")
+            if verbose: print(f"\n\nWritten to {f.name}.\n")
 
 
     print("\n\n\n*** All Done. ***\n\n\n")
