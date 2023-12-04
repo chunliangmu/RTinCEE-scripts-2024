@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[1]:
+# In[4]:
 
 
 """Scripts for analyzing of phantom outputs.
@@ -15,7 +15,7 @@ This script analyze the dump files about the opacity based on density and temper
 
 # ## Imports & Settings
 
-# In[2]:
+# In[5]:
 
 
 import numpy as np
@@ -26,19 +26,22 @@ from moviepy.editor import ImageSequenceClip
 from os import path
 
 
-# In[3]:
+# In[27]:
 
 
 # import my modules listed in ./main/
 
 from main import clmuphantomlib as mupl
 #from main.clmuphantomlib.readwrite import json_load
+from main.clmuphantomlib.log import is_verbose, say
 from main.clmuphantomlib.settings   import DEFAULT_SETTINGS as settings
 from main.clmuphantomlib.units_util import get_val_in_unit #set_as_quantity, get_units_field_name, get_units_cgs
 from main.clmuphantomlib.eos_mesa   import EoS_MESA_opacity
+from multiprocessing import cpu_count, Pool #Process, Queue
+NPROCESSES = 1 if cpu_count() is None else max(cpu_count(), 1)
 
 
-# In[4]:
+# In[33]:
 
 
 # settings
@@ -52,7 +55,118 @@ unitsOutTxt = {  key  : unitsOut[key].to_string('latex_inline') for key in units
 
 
 plt.rcParams.update({'font.size': 20})
+if is_verbose(verbose, 'note'):
+    say('note', "script_kappaProfile", verbose, f"Will use {NPROCESSES} processes for parallelization")
 
+
+# In[45]:
+
+
+# functions
+
+# plot_kappaProfile(job_name, file_index, eos_opacity, xlims, ylim, verbose)
+def plot_kappaProfile(
+    job_name: str, file_index: int, eos_opacity: EoS_MESA_opacity,
+    xlims: dict,
+    ylim: tuple,
+    verbose: int,
+) -> str:
+    """Plot kappa Profile of a dump.
+
+    Returns outfilename
+    """
+    
+    fig, axes = plt.subplots(1, 2, figsize=(14, 7), sharey=True)
+    fig.subplots_adjust(wspace=0.0)
+    mpdf = mupl.MyPhantomDataFrames().read(job_name, file_index, reset_xyz_by_CoM=True, verbose=verbose)
+    #jobfilename = mupl.get_filename_phantom_dumps(job_name, file_index)
+    jobfilename = mpdf.get_filename()
+    # get temperature column label (one of the elem in the set below)
+    temp_key = {'T', 'temperature', 'Tdust'}.intersection(mpdf.data['gas'].keys()).pop()
+    mpdf.data['gas']['T'    ] = mpdf.data['gas'][temp_key]
+    mpdf.data['gas']['kappa'] = get_val_in_unit(mpdf.data['gas']['kappa'], units.cm**2/units.g, mpdf.units['opacity'])
+
+    y_orig = mpdf.get_val('kappa').to(unitsOut['opacity'])
+    y_mesa = eos_opacity.get_kappa(mpdf.get_val('rho'), mpdf.get_val('T'), do_extrap=False).to(unitsOut['opacity'])
+    y_extrap_indexes = np.where(~np.isfinite(y_mesa))[0]
+    y_mesa_extrap = eos_opacity.get_kappa(
+        mpdf.get_val('rho')[y_extrap_indexes], mpdf.get_val('T')[y_extrap_indexes], do_extrap=True).cgs
+
+    # setting the switch between mesa opacity from phantom and nucleation opacity from luis
+    # mesa opacity table from phantom uses Ferguson-2005-1 for opacity calc at low T (T < 1e4 K),
+    #    which includes opacity from grains forming.
+    #    We don't want that becaues we have our own carbon dust nucleation opacity.
+    #    according to Ferguson-2005-1 fig9, grains dominates at T < 1550K (approximate)
+    T_0, T_delta = 1550 * units.K, 50 * units.K
+    x = mpdf.get_val('T').to(unitsOut['temp'], equivalencies=units.equivalencies.temperature())
+    y_comb = np.where(x < T_0, y_orig, y_mesa)
+
+    
+    # kappa vs temp
+    ax = axes[0]
+    x = mpdf.get_val('T').to(unitsOut['temp'], equivalencies=units.equivalencies.temperature())
+    x_extrap = x[y_extrap_indexes]
+    ax.loglog(x, y_orig, '.')
+    ax.loglog(x, y_mesa, '.')
+    ax.loglog(x_extrap, y_mesa_extrap, '.')
+    ax.loglog(x, y_comb, '.', label='Blended')
+    ax.set_xlim(xlims['T'])
+    ax.set_ylim(ylim)
+    ax.set_xlabel(f"$T$ / {x.unit.to_string('latex_inline')}")
+    ax.set_ylabel(f"$\\kappa$ / {y_orig.unit.to_string('latex_inline')}")
+    ax.text(
+        0.02, 0.98,
+        f"Time = {mpdf.get_time(unitsOut['time']):.1f}",
+        color = "black", ha = 'left', va = 'top',
+        transform=ax.transAxes,
+    )
+
+    # kappa vs rho
+    ax = axes[1]
+    x = mpdf.get_val('rho').to(unitsOut['density'])
+    x_extrap = x[y_extrap_indexes]
+    ax.loglog(x, y_orig, '.', label='Nucleation')
+    ax.loglog(x, y_mesa, '.', label='MESA')
+    ax.loglog(x_extrap, y_mesa_extrap, '.', label='MESA extrap')
+    ax.loglog(x, y_comb, '.', label='Blended')
+    ax.set_xlim(xlims['rho'])
+    ax.set_ylim(ylim)
+    ax.set_xlabel(f"$\\rho$ / {x.unit.to_string('latex_inline')}")
+    ax.legend(loc='lower right')
+
+
+    fig.suptitle(
+        f"Opacity of all particles in the dump (different calculation method)\n"
+        #f"resolution = {mpdf.params['nparttot']:.2e}\n"
+        f"{job_profile['plot_title_suffix']}"
+    )
+
+    outfilename = f"{jobfilename}__kappaProfile.png"
+    fig.savefig(outfilename)
+    plt.close(fig)
+
+    return outfilename
+
+
+# In[46]:
+
+
+if __name__ == '__main__':
+    ylim = (1e-6, 1e4)
+    xlims= {
+        'T'  : (  5.,  2e6),
+        'rho': (2e-20, 1e-3),
+    }
+    
+    key = '2md'
+    file_index  = 17600
+    job_profile = JOB_PROFILES_DICT[key]
+    job_name    = job_profile['job_name']
+    params      = job_profile['params']
+    eos_opacity = EoS_MESA_opacity(params, settings)
+    
+    outfilename = plot_kappaProfile(job_name, file_index, eos_opacity, xlims, ylim, verbose)
+    print(outfilename)
 
 
 # In[ ]:
@@ -74,66 +188,22 @@ if __name__ == '__main__':
         params      = job_profile['params']
         eos_opacity = EoS_MESA_opacity(params, settings)
 
-        outfilenames = []
-        for file_index in job_profile['file_indexes']:
-            fig, axes = plt.subplots(1, 2, figsize=(14, 7), sharey=True)
-            fig.subplots_adjust(wspace=0.0)
-            mpdf.read(job_name, file_index, reset_xyz_by_CoM=True, verbose=verbose)
-            #jobfilename = mupl.get_filename_phantom_dumps(job_name, file_index)
-            jobfilename = mpdf.get_filename()
-            # get temperature column label (one of the elem in the set below)
-            temp_key = {'T', 'temperature', 'Tdust'}.intersection(mpdf.data['gas'].keys()).pop()
-            mpdf.data['gas']['T'    ] = mpdf.data['gas'][temp_key]
-            mpdf.data['gas']['kappa'] = get_val_in_unit(mpdf.data['gas']['kappa'], units.cm**2/units.g, mpdf.units['opacity'])
-    
-            y_orig = mpdf.get_val('kappa').to(unitsOut['opacity'])
-            y_mesa = eos_opacity.get_kappa(mpdf.get_val('rho'), mpdf.get_val('T'), do_extrap=False).to(unitsOut['opacity'])
-            y_extrap_indexes = np.where(~np.isfinite(y_mesa))[0]
-            y_mesa_extrap = eos_opacity.get_kappa(
-                mpdf.get_val('rho')[y_extrap_indexes], mpdf.get_val('T')[y_extrap_indexes], do_extrap=True).cgs
-    
+        
+        if NPROCESSES <= 1:
+
+            # single process
             
-            # kappa vs temp
-            ax = axes[0]
-            x = mpdf.get_val('T').to(unitsOut['temp'], equivalencies=units.equivalencies.temperature())
-            x_extrap = x[y_extrap_indexes]
-            ax.loglog(x, y_orig, '.')
-            ax.loglog(x, y_mesa, '.')
-            ax.loglog(x_extrap, y_mesa_extrap, '.')
-            ax.set_xlim(xlims['T'])
-            ax.set_ylim(ylim)
-            ax.set_xlabel(f"$T$ / {x.unit.to_string('latex_inline')}")
-            ax.set_ylabel(f"$\\kappa$ / {y_orig.unit.to_string('latex_inline')}")
-            ax.text(
-                0.02, 0.98,
-                f"Time = {mpdf.get_time(unitsOut['time']):.1f}",
-                color = "black", ha = 'left', va = 'top',
-                transform=ax.transAxes,
-            )
-    
-            # kappa vs rho
-            ax = axes[1]
-            x = mpdf.get_val('rho').to(unitsOut['density'])
-            x_extrap = x[y_extrap_indexes]
-            ax.loglog(x, y_orig, '.', label='Nucleation')
-            ax.loglog(x, y_mesa, '.', label='MESA')
-            ax.loglog(x_extrap, y_mesa_extrap, '.', label='MESA extrap')
-            ax.set_xlim(xlims['rho'])
-            ax.set_ylim(ylim)
-            ax.set_xlabel(f"$\\rho$ / {x.unit.to_string('latex_inline')}")
-            ax.legend(loc='lower right')
-    
-    
-            fig.suptitle(
-                f"Opacity of all particles in the dump (different calculation method)\n"
-                #f"resolution = {mpdf.params['nparttot']:.2e}\n"
-                f"{job_profile['plot_title_suffix']}"
-            )
-    
-            outfilename = f"{jobfilename}__kappaProfile.png"
-            fig.savefig(outfilename)
-            outfilenames.append(outfilename)
-            plt.close(fig)
+            outfilenames = []
+            for file_index in job_profile['file_indexes']:
+                outfilename = plot_kappaProfile(job_name, file_index, eos_opacity, xlims, ylim, verbose)
+                outfilenames.append(outfilename)
+        else:
+
+            # multi-process
+            
+            args = [(job_name, file_index, eos_opacity, xlims, ylim, verbose) for file_index in file_indexes]
+            with Pool(processes=NPROCESSES) as pool:
+                outfilenames = pool.starmap(plot_kappaProfile, args)
 
 
         # define job_folder_prefix
