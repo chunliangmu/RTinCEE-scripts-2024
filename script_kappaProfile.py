@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[4]:
+# In[1]:
 
 
 """Scripts for analyzing of phantom outputs.
@@ -15,7 +15,7 @@ This script analyze the dump files about the opacity based on density and temper
 
 # ## Imports & Settings
 
-# In[5]:
+# In[2]:
 
 
 import numpy as np
@@ -26,7 +26,7 @@ from moviepy.editor import ImageSequenceClip
 from os import path
 
 
-# In[27]:
+# In[3]:
 
 
 # import my modules listed in ./main/
@@ -41,7 +41,7 @@ from multiprocessing import cpu_count, Pool #Process, Queue
 NPROCESSES = 1 if cpu_count() is None else max(cpu_count(), 1)
 
 
-# In[33]:
+# In[4]:
 
 
 # settings
@@ -59,7 +59,7 @@ if is_verbose(verbose, 'note'):
     say('note', "script_kappaProfile", verbose, f"Will use {NPROCESSES} processes for parallelization")
 
 
-# In[45]:
+# In[5]:
 
 
 # functions
@@ -148,10 +148,11 @@ def plot_kappaProfile(
     return outfilename
 
 
-# In[46]:
+# In[6]:
 
 
-if __name__ == '__main__':
+do_debug = False
+if __name__ == '__main__' and do_debug:
     ylim = (1e-6, 1e4)
     xlims= {
         'T'  : (  5.,  2e6),
@@ -201,7 +202,7 @@ if __name__ == '__main__':
 
             # multi-process
             
-            args = [(job_name, file_index, eos_opacity, xlims, ylim, verbose) for file_index in file_indexes]
+            args = [(job_name, file_index, eos_opacity, xlims, ylim, 0) for file_index in job_profile['file_indexes']]
             with Pool(processes=NPROCESSES) as pool:
                 outfilenames = pool.starmap(plot_kappaProfile, args)
 
