@@ -56,7 +56,9 @@ unitsOutTxt = {  key  : unitsOut[key].to_string('latex_inline') for key in units
 
 plt.rcParams.update({'font.size': 20})
 if __name__ == '__main__' and is_verbose(verbose, 'note'):
-    say('note', "script_kappaProfile", verbose, f"Will use {NPROCESSES} processes for parallelization")
+    # remember to check if name is '__main__' if you wanna say anything
+    #    so when you do multiprocessing the program doesn't freak out
+    say('note', "script", verbose, f"Will use {NPROCESSES} processes for parallelization")
 
 
 # In[5]:
@@ -72,6 +74,8 @@ def plot_kappaProfile(
     verbose: int,
 ) -> str:
     """Plot kappa Profile of a dump.
+
+    Warning: assume a hard-coded constant kappa_gas as 2e-4 cm2/g
 
     Returns outfilename
     """
@@ -96,10 +100,11 @@ def plot_kappaProfile(
     # mesa opacity table from phantom uses Ferguson-2005-1 for opacity calc at low T (T < 1e4 K),
     #    which includes opacity from grains forming.
     #    We don't want that becaues we have our own carbon dust nucleation opacity.
-    #    according to Ferguson-2005-1 fig9, grains dominates at T < 1550K (approximate)
-    T_0, T_delta = 1550 * units.K, 50 * units.K
+    #    according to Ferguson-2005-1 fig9, grains dominates at T < 1450K (for logR=-3, X=0.7, Z=0.02)
+    T_0, T_delta = 1450 * units.K, 50 * units.K
     x = mpdf.get_val('T').to(unitsOut['temp'], equivalencies=units.equivalencies.temperature())
-    y_comb = np.where(x < T_0, y_orig, y_mesa)
+    kappa_gas = (2e-4*(units.cm**2/units.g)).to(unitsOut['opacity'])
+    y_comb = np.where(x < T_0, y_orig, y_orig - kappa_gas + y_mesa)
 
     
     # kappa vs temp
@@ -144,14 +149,20 @@ def plot_kappaProfile(
     outfilename = f"{jobfilename}__kappaProfile.png"
     fig.savefig(outfilename)
     plt.close(fig)
+    del mpdf
 
     return outfilename
 
 
-# In[6]:
+# In[63]:
 
 
 do_debug = False
+
+
+# In[75]:
+
+
 if __name__ == '__main__' and do_debug:
     ylim = (1e-6, 1e4)
     xlims= {
@@ -170,6 +181,26 @@ if __name__ == '__main__' and do_debug:
     print(outfilename)
 
 
+# In[127]:
+
+
+if __name__ == '__main__' and do_debug:
+    params = JOB_PROFILES_DICT['2md']['params']
+    eos_opacity = EoS_MESA_opacity(params, settings)
+    Ts = (10**np.arange(3., 3.3, 0.005))*units.K
+    fig, ax = plt.subplots(figsize=(10, 8))
+    for log10_rho in range(-16, -11, 1):
+        rho = (10**log10_rho)*(units.g/units.cm**3)
+        kappas = eos_opacity.get_kappa(rho=rho, T=Ts)
+        ax.semilogy(Ts.cgs, kappas.cgs, '-', label=f"$\\log_{{10}} \\rho = {log10_rho}$")
+
+    ax.legend()
+    ax.set_title("MESA opacity table $\\kappa$ vs temperature $T$")
+    ax.set_ylabel(f"$\\kappa$ / {kappas.cgs.unit.to_string('latex_inline')}")
+    ax.set_xlabel(f"$T$ / $K$")
+    fig.savefig(f"main/test_mesa-opacity_kappa-T-rho.png")
+
+
 # In[ ]:
 
 
@@ -182,7 +213,7 @@ if __name__ == '__main__':
         'rho': (2e-20, 1e-3),
     }
     
-    mpdf = mupl.MyPhantomDataFrames()
+    #mpdf = mupl.MyPhantomDataFrames()
     for key in ['2md', '4md']:
         job_profile = JOB_PROFILES_DICT[key]
         job_name    = job_profile['job_name']
@@ -221,6 +252,8 @@ if __name__ == '__main__':
         with ImageSequenceClip(outfilenames, fps=fps) as vid:
             moviefilename = f"{job_folder_prefix}__kappaProfile__movie.mp4"
             vid.write_videofile(moviefilename)
+
+    print("\n\n\n*** All Done. ***\n\n\n")
 
 
 # if __name__ == '__main__':
