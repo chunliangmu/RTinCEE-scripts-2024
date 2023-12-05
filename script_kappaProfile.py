@@ -82,7 +82,7 @@ def plot_kappaProfile(
     
     fig, axes = plt.subplots(1, 2, figsize=(14, 7), sharey=True)
     fig.subplots_adjust(wspace=0.0)
-    mpdf = mupl.MyPhantomDataFrames().read(job_name, file_index, reset_xyz_by_CoM=True, verbose=verbose)
+    mpdf = mupl.MyPhantomDataFrames().read(job_name, file_index, verbose=verbose) # reset_xyz_by_CoM=True, 
     #jobfilename = mupl.get_filename_phantom_dumps(job_name, file_index)
     jobfilename = mpdf.get_filename()
     # get temperature column label (one of the elem in the set below)
