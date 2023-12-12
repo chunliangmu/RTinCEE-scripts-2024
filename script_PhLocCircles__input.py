@@ -3,7 +3,7 @@ Input Parameters for my scripts.
 """
 
 # imports and internal settings
-from _photosphere_jobProfiles__input import unitsOut, JOB_PROFILES_LIST, JOB_PROFILES_GROUPS
+from _photosphere_jobProfiles__input import fps, unitsOut, JOB_PROFILES_LIST, JOB_PROFILES_GROUPS
 
 
 # script input parameters
@@ -24,8 +24,6 @@ box_lim_dict = { # using JOB_PROFILES_LIST['nickname'] as key
     '4m' : 39,
     '2m_2022': 39,
 }
-
-fps = 10
 
 use_saved_jsons = False
 

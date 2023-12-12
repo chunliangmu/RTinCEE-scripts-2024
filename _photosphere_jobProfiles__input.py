@@ -7,6 +7,7 @@ import numpy as np
 from astropy import units
 Msun_str = units.Msun.to_string('latex_inline')
 
+fps = 10
 
 unitsOut = {
     'dist': units.au,
