@@ -19,6 +19,9 @@ unitsOut = {
 }
 
 
+PHOTOSPHERE_TAU = 1.0
+
+
 # script input parameters
 JOB_PROFILES_LIST = (
     {
