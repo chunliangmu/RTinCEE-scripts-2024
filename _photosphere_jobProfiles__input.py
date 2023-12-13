@@ -7,6 +7,9 @@ import numpy as np
 from astropy import units
 Msun_str = units.Msun.to_string('latex_inline')
 
+# output directory- remember to add the final sep '/' at the end
+out_dir = '../fig/'
+
 fps = 10
 
 unitsOut = {
@@ -25,7 +28,9 @@ PHOTOSPHERE_TAU = 1.0
 # script input parameters
 JOB_PROFILES_LIST = (
     {
-        'job_name': '../photosphere/luis_2md/light',
+        'raw_dir' : '../photosphere/luis_2md/',
+        'file_prefix': 'light',
+        #'job_name': '../photosphere/luis_2md/light', # deprecated keyword- will still be added automatically later
         'file_indexes': np.arange(0, 17600+1, 100),
         'plot_title_suffix': f" for 1.7{Msun_str} primary star with Nucleation Dust",
         'ieos': 10,
@@ -41,7 +46,9 @@ JOB_PROFILES_LIST = (
         'color': 'blue',
     },
     {
-        'job_name': '../photosphere/luis_4md/light',
+        'raw_dir' : '../photosphere/luis_4md/',
+        'file_prefix': 'light',
+        #'job_name': '../photosphere/luis_4md/light',
         'file_indexes': np.arange(0, 17600+1, 100),
         'plot_title_suffix': f" for 3.7{Msun_str} primary star with Nucleation Dust",
         'ieos': 10,
@@ -57,7 +64,9 @@ JOB_PROFILES_LIST = (
         'color': 'blue',
     },
     {
-        'job_name': '../photosphere/miguel_2m/binary',
+        'raw_dir' : '../photosphere/miguel_2m/',
+        'file_prefix': 'binary',
+        #'job_name': '../photosphere/miguel_2m/binary',
         'file_indexes': np.arange(0, 5000+1, 100),
         'plot_title_suffix': f" for 1.7{Msun_str} primary star without Dust",
         'ieos': 10,
@@ -73,7 +82,9 @@ JOB_PROFILES_LIST = (
         'color': 'orange',
     },
     {
-        'job_name': '../photosphere/miguel_4m/binary',
+        'raw_dir' : '../photosphere/miguel_4m/',
+        'file_prefix': 'binary',
+        #'job_name': '../photosphere/miguel_4m/binary',
         'file_indexes': np.arange(0, 5000+1, 100),
         'plot_title_suffix': f" for 3.7{Msun_str} primary star without Dust",
         'ieos': 10,
@@ -89,7 +100,9 @@ JOB_PROFILES_LIST = (
         'color': 'orange',
     },
     {
-        'job_name': '../photosphere/miguel_2m_2022/binary',
+        'raw_dir' : '../photosphere/miguel_2m_2022/',
+        'file_prefix': 'binary',
+        #'job_name': '../photosphere/miguel_2m_2022/binary',
         'file_indexes': np.arange(0, 6000+1, 100),
         'plot_title_suffix': f" for 1.7{Msun_str} primary star without Dust",
         'ieos': 10,
@@ -105,6 +118,10 @@ JOB_PROFILES_LIST = (
         'color': 'orange',
     },
 )
+
+for job_profile in JOB_PROFILES_LIST:
+    # deprecated keyword generation
+    job_profile['job_name'] = job_profile['raw_dir'] + job_profile['file_prefix']
 
 JOB_PROFILES_GROUPS = {
     '2m': (JOB_PROFILES_LIST[0], JOB_PROFILES_LIST[2],),
