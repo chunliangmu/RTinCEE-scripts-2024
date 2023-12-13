@@ -3,14 +3,12 @@ Input Parameters for my scripts.
 """
 
 # imports and internal settings
-from _photosphere_jobProfiles__input import fps, unitsOut, JOB_PROFILES_LIST, JOB_PROFILES_GROUPS
+from _photosphere_jobProfiles__input import fps, unitsOut, PHOTOSPHERE_TAU, JOB_PROFILES_LIST, JOB_PROFILES_GROUPS
 
 
 # script input parameters
 
 verbose = 3
-
-PHOTOSPHERE_TAU = 1.0
 
 ray_no = 600
 
