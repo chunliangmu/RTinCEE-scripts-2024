@@ -1,3 +1,6 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+
 """
 Input Parameters describing sims saved in ../photosphere/
 """
@@ -19,7 +22,7 @@ unitsOut = {
     'density': units.g / units.cm**3,
     'opacity': units.cm**2 / units.g,
     'dimless': units.dimensionless_unscaled,
-    'speed': units.au/units.yr,
+    'speed': units.km/units.s,
 }
 
 
@@ -40,7 +43,6 @@ JOB_PROFILES_LIST = (
             'Z' : 0.021,
             'mu': 2.381,
         },
-        'X': 0.691,
         'name': f"Dusty 1.7{Msun_str}",
         'nickname': '2md',
         #'fmt': '-',
@@ -58,7 +60,6 @@ JOB_PROFILES_LIST = (
             'Z' : 0.024,
             'mu': 2.381,
         },
-        'X': 0.686,
         'name': f"Dusty 3.7{Msun_str}",
         'nickname': '4md',
         #'fmt': '-',
@@ -76,7 +77,6 @@ JOB_PROFILES_LIST = (
             'Z' : 0.021,
             'mu': 2.381,
         },
-        'X': 0.691,
         'name': f"Non-dusty 1.7{Msun_str}",
         'nickname': '2m',
         #'fmt': '--',
@@ -94,7 +94,6 @@ JOB_PROFILES_LIST = (
             'Z' : 0.024,
             'mu': 2.381,
         },
-        'X' : 0.686,
         'name': f"Non-dusty 3.7{Msun_str}",
         'nickname': '4m',
         #'fmt': '--',
@@ -112,7 +111,6 @@ JOB_PROFILES_LIST = (
             'Z' : 0.021,
             'mu': 2.381,
         },
-        'X': 0.691,
         'name': f"Non-dusty 1.7{Msun_str}",
         'nickname': '2m_2022',
         #'fmt': '--',
@@ -123,6 +121,7 @@ JOB_PROFILES_LIST = (
 for job_profile in JOB_PROFILES_LIST:
     # deprecated keyword generation
     job_profile['job_name'] = job_profile['raw_dir'] + job_profile['file_prefix']
+    job_profile['X'] = job_profile['params']['X']
 
 JOB_PROFILES_GROUPS = {
     '2m': (JOB_PROFILES_LIST[0], JOB_PROFILES_LIST[2],),
