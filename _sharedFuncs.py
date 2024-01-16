@@ -8,10 +8,10 @@ Shared helper functions
 # imports and internal settings
 import numpy as np
 from astropy import units
-from main.clmuphantomlib.log import is_verbose, say
-from main.clmuphantomlib import MyPhantomDataFrames, get_eos
-from main.clmuphantomlib.eos_mesa   import EoS_MESA_opacity
-from main.clmuphantomlib.units_util import get_val_in_unit
+from clmuphantomlib.log import is_verbose, say
+from clmuphantomlib import MyPhantomDataFrames, get_eos
+from clmuphantomlib.eos_mesa   import EoS_MESA_opacity
+from clmuphantomlib.units_util import get_val_in_unit
 
 
 def mpdf_read(

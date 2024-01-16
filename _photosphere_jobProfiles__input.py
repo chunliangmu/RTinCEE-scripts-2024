@@ -11,7 +11,10 @@ from astropy import units
 Msun_str = units.Msun.to_string('latex_inline')
 
 # output directory- remember to add the final sep '/' at the end
-out_dir = '../fig/'
+interm_dir = '../interm/'
+output_dir = '../fig/'
+out_dir    = output_dir  # deprecated keyword
+
 
 fps = 10
 
