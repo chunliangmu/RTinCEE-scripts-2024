@@ -196,105 +196,6 @@ def get_ph_vals(
     return vals_dict
 
 
-#     # get the values at random directions (repeat 10 times to make sure the numbers are 'converged')
-#     
-#     if __name__ == '__main__':
-#         mpdf = MyPhantomDataFrames()
-#         vals_names = ['R1', 'T']
-#         ray_no = 100
-#         
-#         key = '2md'
-#         file_index  = 17600
-#         job_profile = JOB_PROFILES_DICT[key]
-#         job_name    = job_profile['job_name']
-#         params      = job_profile['params']
-#         ieos = job_profile['ieos']
-#         eos  = get_eos(ieos, params, settings)
-#         eos_opacity = EoS_MESA_opacity(params, settings)
-#         
-#         mpdf = mpdf_read(job_name, file_index, eos_opacity, mpdf, verbose=verbose)
-#     
-#         for i in range(10):
-#             rays_unit_vecs = get_rand_rays_unit_vec(ray_no)
-#             vals_dict = get_ph_vals(vals_names, mpdf, eos, rays_unit_vecs, verbose=verbose)
-#         
-#             if is_verbose(verbose, 'note'):
-#                 say('note', 'main()', verbose,
-#                     *[f'{val_name} = {np.average(vals_dict[val_name])} +/- {np.std(vals_dict[val_name])}' for val_name in vals_names]
-#                 )
-
-#     # debug
-#     
-#     job_nickname = '2md'
-#     file_index   = 2000
-#     rays_unit_vecs = get_rand_rays_unit_vec(2000)
-#     vals_names=['R1', 'T', 'rho', 'kappa', 'nneigh']
-#     cos_theta_sample_no=None
-#     
-#     job_profile = JOB_PROFILES_DICT[job_nickname]
-#     job_name    = job_profile['job_name']
-#     params      = job_profile['params']
-#     ieos = job_profile['ieos']
-#     eos  = get_eos(ieos, params, settings)
-#     eos_opacity = EoS_MESA_opacity(params, settings)
-#     mpdf = mpdf_read(job_name, file_index, eos_opacity, None, verbose=verbose)
-#     sdf_all = mpdf.data['gas']
-#     hs = np.array(sdf_all['h'])
-#     pts = np.array(sdf_all[['x', 'y', 'z']])    # (npart, 3)-shaped array
-#     kernel_radius = sdf_all.kernel.get_radius()
-#     
-#     plane_orig_vec = np.array(mpdf.data['sink'][['x', 'y', 'z']].iloc[0])
-#     
-#     # random direction in the sphere
-#     #rays_unit_vecs = get_rand_rays_unit_vec(ray_no)
-#     ray_no = len(rays_unit_vecs)
-#     
-#     vals_dict = {
-#         'tau_dust': np.full(ray_no, np.nan),
-#         'inner_dust_shell_rad': np.full(ray_no, np.nan) * mpdf.units['dist'],
-#     }
-#     
-#     iray = 0
-#     ray_unit_vec = rays_unit_vecs[iray]
-#     ray = np.array([
-#         plane_orig_vec,
-#         plane_orig_vec + ray_unit_vec,
-#     ])
-#     
-#     pts_on_ray = mupl.get_closest_pt_on_line(pts, ray)
-#     sdf_selected_indices = (np.sum((pts - pts_on_ray)**2, axis=-1) <= (kernel_radius * hs)**2)
-#     sdf = sdf_all.iloc[sdf_selected_indices]
-#     
-#     pts_on_ray, dtaus, pts_order = get_optical_depth_by_ray_tracing_3D(sdf, ray)
-#     photosphere, waypts_list = get_photosphere_on_ray(
-#         pts_on_ray, dtaus, pts_order, sdf, ray,
-#         calc_params = vals_names,
-#         eos = eos,
-#         sdf_units = mpdf.units,
-#         photosphere_tau = PHOTOSPHERE_TAU,
-#         return_as_quantity=True,
-#         verbose = 1 if is_verbose(verbose, 'err') else 0,
-#     )
-#     for val_name in vals_names:
-#         if iray == 0:
-#             # init
-#             vals_dict[val_name] = np.full((*photosphere[val_name].shape, ray_no), np.nan)
-#             if isinstance(photosphere[val_name], units.quantity.Quantity):
-#                 vals_dict[val_name] *= photosphere[val_name].unit
-#         vals_dict[val_name][iray] = photosphere[val_name]
-#     kappa_tol = 1e-7*(units.cm**2/units.g)
-#     kappa_tol_val = kappa_tol.to_value(mpdf.units['opacity'])
-#     pts_waypts_t = np.sum((pts_on_ray - ray[0]) * ray_unit_vec, axis=-1) # the higher, the more on the pt2 side (observer)
-#     # find the furtherest dust-containing particle on the observer's side
-#     last_dust_part_ordered_ind = np.where(np.logical_and(
-#         pts_waypts_t[pts_order] > 0,    # condition 1: on the observer's side (i.e. don't be further than the sink)
-#         sdf.iloc[pts_order]['kappa_dust'] > kappa_tol_val,    # condition 2: dust-containing
-#     ))[0][-1]    # [0]: select the index array; [-1]: find the last elem
-#     vals_dict['tau_dust'][iray] = np.sum(dtaus[pts_order][:last_dust_part_ordered_ind])
-#     vals_dict['inner_dust_shell_rad'][iray] = mupl.set_as_quantity(
-#         pts_waypts_t[pts_order][last_dust_part_ordered_ind], mpdf.units['dist'])
-#     vals_dict
-
 # In[7]:
 
 
@@ -383,7 +284,7 @@ if __name__ == '__main__':
     if NPROCESSES <= 1:
         for job_nickname in job_nicknames:  # '2md', 
             for file_index in JOB_PROFILES_DICT[job_nickname]['file_indexes']: # [0, 2000, 4800, 6400, 8000, 17600]
-        write_ans(job_nickname, file_index, ray_no, verbose)
+                write_ans(job_nickname, file_index, ray_no, verbose)
     else:
         args = [
             (job_nickname, file_index, ray_no, 0)
