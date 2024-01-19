@@ -6,6 +6,8 @@ Input Parameters for my scripts.
 from _photosphere_jobProfiles__input import out_dir, unitsOut, PHOTOSPHERE_TAU, JOB_PROFILES_DICT #, fps
 
 
+job_nicknames = ['4md', '2md', '4m', '2m_2022']
+
 verbose = 3
 
 ray_no = 2000

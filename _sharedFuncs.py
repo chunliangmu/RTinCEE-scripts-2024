@@ -25,7 +25,11 @@ def mpdf_read(
     T_cond_oxy: units.Quantity = 1450 * units.K,
     verbose: int = 3,
 ) -> MyPhantomDataFrames:
-    """Read the dump files and get T and kappa."""
+    """Read the dump files and get T and kappa,
+    
+    using a blend of mesa opacity (for high T) and stored kappa value in the dump (for low T; in my project, this col is nucleation dust opacity).
+    If no kappa is found, will use default 2e-4 cm2/g for the low T part instead. You can disable this by setting T_cond_oxy to 0K.
+    """
     if mpdf is None:
         mpdf = MyPhantomDataFrames()
 
@@ -54,6 +58,15 @@ def mpdf_read(
                 f"{np.count_nonzero(mpdf.data['gas']['kappa_dust']) = }",
                 f"{np.count_nonzero(mpdf.data['gas']['kappa'])      = }")
     else:
-        raise NotImplementedError("non-dusty sims (no kappa column in dump files) not yet implemented")
+        #raise NotImplementedError("non-dusty sims (no kappa column in dump files) not yet implemented")
+
+        # just use mesa opacity
+        
+        kappa_mesa = eos_opacity.get_kappa(mpdf.get_val('rho'), mpdf.get_val('T'), do_extrap=False)
+        mpdf.data['gas']['kappa'] = np.where(
+            mpdf.data['gas']['T'] < T_cond_oxy,
+            kappa_gas.to_value( mpdf.units['opacity']),
+            kappa_mesa.to_value(mpdf.units['opacity']),
+        )
 
     return mpdf
