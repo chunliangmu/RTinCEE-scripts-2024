@@ -4,7 +4,7 @@ Input Parameters for my scripts.
 
 # imports and internal settings
 from _photosphere_jobProfiles__input import fps, unitsOut, PHOTOSPHERE_TAU, JOB_PROFILES_LIST, JOB_PROFILES_GROUPS
-from main.clmuphantomlib.units_util import DEFAULT_UNITS
+from clmuphantomlib.units_util import DEFAULT_UNITS
 
 
 # script input parameters
