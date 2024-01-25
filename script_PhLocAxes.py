@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[3]:
+# In[2]:
 
 
 """Scripts for analyzing of phantom outputs.
@@ -16,7 +16,7 @@ It does so by plotting photosphere intersection with traced rays originating fro
 
 # ## Imports & Settings
 
-# In[4]:
+# In[3]:
 
 
 #%matplotlib inline
@@ -31,17 +31,17 @@ import matplotlib as mpl
 #from moviepy.editor import ImageSequenceClip
 
 
-# In[5]:
+# In[4]:
 
 
 # import modules listed in ./lib/
 
-from main import clmuphantomlib as mupl
-from main.clmuphantomlib.readwrite import json_load, json_dump
-from main.clmuphantomlib.settings import DEFAULT_SETTINGS as settings
-from main.clmuphantomlib.log import error, warn, note, debug_info
-from main.clmuphantomlib.log import is_verbose, say
-from main.clmuphantomlib.units_util import set_as_quantity
+import clmuphantomlib as mupl
+from clmuphantomlib.readwrite import json_load, json_dump
+from clmuphantomlib.settings import DEFAULT_SETTINGS as settings
+from clmuphantomlib.log import error, warn, note, debug_info
+from clmuphantomlib.log import is_verbose, say
+from clmuphantomlib.units_util import set_as_quantity
 
 
 #     ## import modules in arbitrary directory
@@ -60,7 +60,7 @@ from main.clmuphantomlib.units_util import set_as_quantity
 #     #    f"\n{SRC_LIB_PATH = }\n"
 #     #)
 
-# In[6]:
+# In[5]:
 
 
 # parallels & optimizations
@@ -77,7 +77,7 @@ from multiprocessing import cpu_count, Pool #Process, Queue
 NPROCESSES = 1 if cpu_count() is None else max(cpu_count(), 1)
 
 
-# In[7]:
+# In[6]:
 
 
 # settings
@@ -85,6 +85,7 @@ NPROCESSES = 1 if cpu_count() is None else max(cpu_count(), 1)
 #   imported from script_input.py file
 
 from script_PhLocAxes__input import verbose, PHOTOSPHERE_TAU, JOB_PROFILES
+from _sharedFuncs import mpdf_read
 
 
 # set metadata
@@ -109,11 +110,12 @@ if __name__ == '__main__' and is_verbose(verbose, 'note'):
 
 # ## Photosphere size vs time
 
-# In[6]:
+# In[7]:
 
 
 def write_ph_loc_axes(
-    job_profile : dict,
+    #job_profile : dict,
+    job_name : str,
     file_indexes : np.ndarray,
     rays_dir_def : dict,    # dict of list
     eoses : (mupl.eos_base.EoS_Base, mupl.eos_mesa.EoS_MESA_opacity),
@@ -128,12 +130,12 @@ def write_ph_loc_axes(
     """
     
     
-    mpdf = mupl.MyPhantomDataFrames()
+    #mpdf = mupl.MyPhantomDataFrames()
 
     
-    job_name = job_profile['job_name']
-    X = job_profile['X']
-    ieos = job_profile['ieos']
+    #job_name = job_profile['job_name']
+    #X = job_profile['X']
+    #ieos = job_profile['ieos']
 
     eos, eos_opacity = eoses
 
@@ -159,24 +161,25 @@ def write_ph_loc_axes(
             photosphere_pars['data'][key] = {}
 
         # read data
-        mpdf.read(job_name, file_index, reset_xyz_by='CoM', verbose=verbose)
-        if 'Tdust' in mpdf.data['gas'].columns:
-            mpdf.data['gas']['T'] = mpdf.data['gas']['Tdust']
-        elif 'temperature' in mpdf.data['gas'].columns:
-            mpdf.data['gas']['T'] = mpdf.data['gas']['temperature']
-        if 'kappa' not in mpdf.data['gas'].keys():
-            # get kappa from mesa table in cgs units
-            mpdf.data['gas']['kappa'] = eos_opacity.get_kappa(
-                mpdf.get_val('rho', copy=False),
-                mpdf.get_val('T', copy=False),
-                do_extrap=True,
-                return_as_quantity=False)
-        # translate to phantom units
-        mpdf.calc_sdf_params(
-            calc_params=['kappa',], #'R1',
-            calc_params_params={'ieos': ieos, 'X':X, 'overwrite':False, 'kappa_translate_from_cgs_units':True},
-            verbose=verbose,
-        )
+        mpdf = mpdf_read(job_name, file_index, eos_opacity, mpdf=None, reset_xyz_by='CoM', verbose=verbose)
+        #mpdf.read(job_name, file_index, reset_xyz_by='CoM', verbose=verbose)
+        #if 'Tdust' in mpdf.data['gas'].columns:
+        #    mpdf.data['gas']['T'] = mpdf.data['gas']['Tdust']
+        #elif 'temperature' in mpdf.data['gas'].columns:
+        #    mpdf.data['gas']['T'] = mpdf.data['gas']['temperature']
+        #if 'kappa' not in mpdf.data['gas'].keys():
+        #    # get kappa from mesa table in cgs units
+        #    mpdf.data['gas']['kappa'] = eos_opacity.get_kappa(
+        #        mpdf.get_val('rho', copy=False),
+        #        mpdf.get_val('T', copy=False),
+        #        do_extrap=True,
+        #        return_as_quantity=False)
+        ## translate to phantom units
+        #mpdf.calc_sdf_params(
+        #    calc_params=['kappa',], #'R1',
+        #    calc_params_params={'ieos': ieos, 'X':X, 'overwrite':False, 'kappa_translate_from_cgs_units':True},
+        #    verbose=verbose,
+        #)
         hfact = mpdf.params['hfact']
         mpart = mpdf.params['mass']
         
@@ -222,12 +225,13 @@ def write_ph_loc_axes(
                     'write_ph_loc_axes()', verbose,
                     f"{ray = }"
                 )
-            pts_on_ray, dtaus, pts_order = mupl.get_optical_depth_by_ray_tracing_3D(sdf=sdf, ray=ray)
-            photosphere, (pts_waypts, pts_waypts_t, taus_waypts) = mupl.get_photosphere_on_ray(
+            pts_on_ray, dtaus, pts_order = mupl.light.get_optical_depth_by_ray_tracing_3D(sdf=sdf, ray=ray)
+            photosphere, (pts_waypts, pts_waypts_t, taus_waypts) = mupl.light.get_photosphere_on_ray(
                 pts_on_ray, dtaus, pts_order, sdf, ray,
                 calc_params = ['loc', 'R1', 'rho', 'u', 'h', 'T', 'kappa'],
                 hfact = hfact, mpart=mpart, eos=eos, sdf_units=mpdf.units,
                 ray_unit_vec=ray_unit_vec, verbose=verbose,
+                return_as_quantity=False,
             )
             photosphere_pars['data'][key] = photosphere
             photosphere_pars['data'][key]['size'] = photosphere['R1']
@@ -255,24 +259,26 @@ def write_ph_loc_axes(
         with open(f"{mpdf.get_filename()}__photospherePars__xyz.json", 'w') as f:
             json_dump(photosphere_pars, f, metadata=metadata, indent=None)
             if verbose: print(f"\n\nWritten to {f.name}\n")
+                
+        del mpdf
 
     return None
 
 
 # ## Main
 
-# In[13]:
+# In[16]:
 
 
-do_debug = False
+do_debug = True
 if do_debug and __name__ == '__main__':
     from script_PhLocAxes__input import JOB_PROFILES
-    JOB_PROFILES = JOB_PROFILES[3:4]
-    JOB_PROFILES[0]['file_indexes'] = (400, 500, 5000)
+    JOB_PROFILES = JOB_PROFILES[:1]
+    JOB_PROFILES[0]['file_indexes'] = (2000, 4800)
     
 
 
-# In[11]:
+# In[17]:
 
 
 # main process
@@ -297,11 +303,13 @@ if __name__ == '__main__':
     
     
     # get ph loc for each dump file
+    args = []
     for job_profile in JOB_PROFILES:
     
         file_indexes = job_profile['file_indexes']
-        eos = mupl.get_eos(job_profile['ieos'], job_profile['params'], settings)
-        eos_opacity = mupl.eos_mesa.EoS_MESA_opacity(job_profile['params'], settings)
+        job_name     = job_profile['job_name']
+        eos          = mupl.get_eos(job_profile['ieos'], job_profile['params'], settings)
+        eos_opacity  = mupl.eos_mesa.EoS_MESA_opacity(job_profile['params'], settings)
     
         
         if NPROCESSES <= 1:
@@ -309,7 +317,7 @@ if __name__ == '__main__':
             # single process
     
             write_ph_loc_axes(
-                job_profile = job_profile, file_indexes = file_indexes, rays_dir_def = rays_dir_def,
+                job_name = job_name, file_indexes = file_indexes, rays_dir_def = rays_dir_def,
                 eoses = (eos, eos_opacity), photosphere_tau = PHOTOSPHERE_TAU, verbose = verbose,
             )
             
@@ -317,18 +325,19 @@ if __name__ == '__main__':
             
             # multi-process
 
-            args = [(
-                job_profile,
-                [file_index],
-                rays_dir_def,
-                (eos, eos_opacity),
-                PHOTOSPHERE_TAU,
-                0,
-                ) for file_index in file_indexes
-            ]
+            for file_index in file_indexes:
+                args.append((
+                    job_name,
+                    [file_index],
+                    rays_dir_def,
+                    (eos, eos_opacity),
+                    PHOTOSPHERE_TAU,
+                    0,
+                ))
 
-            with Pool(processes=NPROCESSES) as pool:
-                pool.starmap(write_ph_loc_axes, args)
+    if NPROCESSES > 1:
+        with Pool(processes=NPROCESSES) as pool:
+            pool.starmap(write_ph_loc_axes, args)
     
     
 
