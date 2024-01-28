@@ -23,6 +23,7 @@ def mpdf_read(
     kappa_gas : units.Quantity = 2e-4*(units.cm**2/units.g),
     kappa_tol : units.Quantity = 1e-7*(units.cm**2/units.g),
     T_cond_oxy: units.Quantity = 1450 * units.K,
+    do_extrap: bool = False,
     verbose: int = 3,
 ) -> MyPhantomDataFrames:
     """Read the dump files and get T and kappa,
@@ -38,7 +39,7 @@ def mpdf_read(
     mpdf.data['gas']['T'    ] = mpdf.data['gas'][temp_key]
     if 'kappa' in mpdf.data['gas'].keys():
         unit_opacity = units.cm**2/units.g    # opacity units in original phantom dumpfiles
-        kappa_mesa = eos_opacity.get_kappa(mpdf.get_val('rho'), mpdf.get_val('T'), do_extrap=False)
+        kappa_mesa = eos_opacity.get_kappa(mpdf.get_val('rho'), mpdf.get_val('T'), do_extrap=do_extrap)
         mpdf.data['gas']['kappa_dust'] = mpdf.data['gas']['kappa'] - kappa_gas.to_value(unit_opacity)
         mpdf.data['gas']['kappa_dust'] = np.where(
             mpdf.data['gas']['kappa_dust'] < kappa_tol.to_value(unit_opacity),
@@ -62,7 +63,7 @@ def mpdf_read(
 
         # just use mesa opacity
         
-        kappa_mesa = eos_opacity.get_kappa(mpdf.get_val('rho'), mpdf.get_val('T'), do_extrap=False)
+        kappa_mesa = eos_opacity.get_kappa(mpdf.get_val('rho'), mpdf.get_val('T'), do_extrap=do_extrap)
         mpdf.data['gas']['kappa'] = np.where(
             mpdf.data['gas']['T'] < T_cond_oxy,
             kappa_gas.to_value( mpdf.units['opacity']),
