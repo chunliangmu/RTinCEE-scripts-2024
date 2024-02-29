@@ -228,7 +228,7 @@ def write_ph_loc_axes(
             pts_on_ray, dtaus, pts_order = mupl.light.get_optical_depth_by_ray_tracing_3D(sdf=sdf, ray=ray)
             photosphere, (pts_waypts, pts_waypts_t, taus_waypts) = mupl.light.get_photosphere_on_ray(
                 pts_on_ray, dtaus, pts_order, sdf, ray,
-                calc_params = ['loc', 'R1', 'rho', 'u', 'h', 'T', 'kappa'],
+                calc_params = ['loc', 'R1', 'rho', 'u', 'h', 'T', 'kappa', 'vr'],
                 hfact = hfact, mpart=mpart, eos=eos, sdf_units=mpdf.units,
                 ray_unit_vec=ray_unit_vec, verbose=verbose,
                 return_as_quantity=False,
@@ -247,7 +247,8 @@ def write_ph_loc_axes(
                 set_as_quantity(photosphere['u_on_ray']  , mpdf.units['specificEnergy']),
                 return_as_quantity=False, bounds_error=False)
             photosphere_pars['data'][key]['kappa_on_ray']=mupl.sph_interp.get_sph_interp(sdf,'kappa',pts_on_ray, verbose=verbose)
-                
+            photosphere_pars['data'][key][ 'vr_on_ray'] = mupl.sph_interp.get_sph_interp(sdf,  'vr', pts_on_ray, verbose=verbose)
+
             if verbose:
                 debug_info(    # debug
                     'write_ph_loc_axes()', verbose,
@@ -270,7 +271,7 @@ def write_ph_loc_axes(
 # In[16]:
 
 
-do_debug = True
+do_debug = False
 if do_debug and __name__ == '__main__':
     from script_PhLocAxes__input import JOB_PROFILES
     JOB_PROFILES = JOB_PROFILES[:1]
