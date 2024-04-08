@@ -8,3 +8,9 @@ from _photosphere_jobProfiles__input import interm_dir, output_dir, unitsOut, PH
 
 verbose = 3
 
+job_nicknames = ['2md','4md', '4m', '2m_2022']
+xyzs_list  = ['xyz', 'xzy']
+no_xy=(16, 16)
+no_xy_txt = 'x'.join([f'{i}' for i in no_xy])
+output_dir = f'../fig/20240222_LCGen/{no_xy_txt}/'
+verbose_loop = 0
