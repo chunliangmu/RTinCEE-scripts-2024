@@ -35,7 +35,7 @@ PHOTOSPHERE_TAU = 1.0
 # script input parameters
 JOB_PROFILES_LIST = (
     {
-        'raw_dir' : '../raw/luis_2md/',
+        'raw_dir' : '../photosphere/luis_2md/',
         'file_prefix': 'light',
         #'job_name': '../photosphere/luis_2md/light', # deprecated keyword- will still be added automatically later
         'file_indexes': np.arange(0, 17600+1, 100),
@@ -52,7 +52,7 @@ JOB_PROFILES_LIST = (
         'color': 'blue',
     },
     {
-        'raw_dir' : '../raw/luis_4md/',
+        'raw_dir' : '../photosphere/luis_4md/',
         'file_prefix': 'light',
         #'job_name': '../photosphere/luis_4md/light',
         'file_indexes': np.arange(0, 17600+1, 100),
@@ -69,7 +69,7 @@ JOB_PROFILES_LIST = (
         'color': 'blue',
     },
     {
-        'raw_dir' : '../raw/miguel_2m/',
+        'raw_dir' : '../photosphere/miguel_2m/',
         'file_prefix': 'binary',
         #'job_name': '../photosphere/miguel_2m/binary',
         'file_indexes': np.arange(0, 5000+1, 100),
@@ -86,7 +86,7 @@ JOB_PROFILES_LIST = (
         'color': 'orange',
     },
     {
-        'raw_dir' : '../raw/miguel_4m/',
+        'raw_dir' : '../photosphere/miguel_4m/',
         'file_prefix': 'binary',
         #'job_name': '../photosphere/miguel_4m/binary',
         'file_indexes': np.arange(0, 5000+1, 100),
@@ -103,7 +103,7 @@ JOB_PROFILES_LIST = (
         'color': 'orange',
     },
     {
-        'raw_dir' : '../raw/miguel_2m_2022/',
+        'raw_dir' : '../photosphere/miguel_2m_2022/',
         'file_prefix': 'binary',
         #'job_name': '../photosphere/miguel_2m_2022/binary',
         'file_indexes': np.arange(0, 6000+1, 100),
