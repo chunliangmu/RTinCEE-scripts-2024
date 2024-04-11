@@ -41,6 +41,7 @@ def mpdf_read(
         unit_opacity = units.cm**2/units.g    # opacity units in original phantom dumpfiles
         kappa_mesa = eos_opacity.get_kappa(mpdf.get_val('rho'), mpdf.get_val('T'), do_extrap=do_extrap)
         mpdf.data['gas']['kappa_dust'] = mpdf.data['gas']['kappa'] - kappa_gas.to_value(unit_opacity)
+        # fix negative opacities
         mpdf.data['gas']['kappa_dust'] = np.where(
             mpdf.data['gas']['kappa_dust'] < kappa_tol.to_value(unit_opacity),
             0.,

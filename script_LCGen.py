@@ -1152,138 +1152,182 @@ def get_sph_error(
 # .
 # 
 
+# In[3]:
+
+
+
+
+
 # In[35]:
 
 
-# inputs
-#file_indexes = np.concatenate((np.arange(0, 2000+1, 100), [4800, 6400, 8000, 17600]))
-
-
-# init combined data
-comb = {}
-
-for job_nickname in job_nicknames: #['2md', ]:
-    comb[job_nickname] = {
-        xyzs: {
-            'times_yr' : [],
-            'lums_Lsun': [],
-        } for xyzs in xyzs_list
-    }
-    job_profile = JOB_PROFILES_DICT[job_nickname]
-    job_name    = job_profile['job_name']
-    file_indexes= job_profile['file_indexes']
-    params      = job_profile['params']
-    eos_opacity = EoS_MESA_opacity(params, settings)
+if __name__ == '__main__':
     
-    for file_index in file_indexes:
-        # init
-
-        mpdf = mpdf_read(job_name, file_index, eos_opacity, reset_xyz_by='R1', verbose=1)
-        mpdf.calc_sdf_params(['R1'])
-        sdf  = mpdf.data['gas']
-        srcfuncs = mpdf.const['sigma_sb'] * sdf['T']**4 / pi
-        sdf['srcfunc'] = srcfuncs
-        for xyzs in xyzs_list:
-            xyzs_names_list = [x for x in xyzs]
-
-            
-            # record time used
-            python_time_start = datetime.utcnow()
-            print(f"Start: {python_time_start.isoformat()}")
-            print(f"\tWorking on {job_nickname}_{file_index:05d}_{xyzs}...")
-
-            
-            # get rays
-            rays, areas, dXs = get_xy_grids_of_rays(
-                sdf, no_xy=no_xy, frac_contained=100., use_adaptive_grid=False, xyzs_names_list=xyzs_names_list)
-            pts    = np.array(sdf[xyzs_names_list])
-            hs     = np.array(sdf[ 'h' ])    # npart-shaped array
-            kernel = sdf.kernel
-            kernel_rad = float(kernel.get_radius())
-            col_kernel = kernel.get_column_kernel_func(samples=1000)
-            
-            rays_u = (rays * mpdf.units['dist']).to(units.au)
-            areas_u = (areas * mpdf.units['dist']**2).to(units.au**2)
-
-            
-            # do integration without error estimation
-            ans = integrate_along_ray_gridxy_ind(sdf, srcfuncs, rays, xyzs_names_list=xyzs_names_list, verbose=99)
-            rads, inds, contr, pts_order_used = ans
-            rads = (rads * mpdf.units['sigma_sb'] * mpdf.units['temp']**4 / units.sr).cgs
-            inds *= units.dimensionless_unscaled
-            contr = 100 * contr * units.percent
-            lum = ((4 * pi * units.sr) * (rads * areas_u)).sum().to(units.solLum)
-            anses_fft = fft.fft2(rads.reshape(no_xy).value)
+    # init combined data
+    comb = {}
+    
+    for job_nickname in job_nicknames: #['2md', ]:
+        comb[job_nickname] = {
+            xyzs: {
+                'times_yr' : [],
+                'lums_Lsun': [],
+            } for xyzs in xyzs_list
+        }
+        job_profile = JOB_PROFILES_DICT[job_nickname]
+        job_name    = job_profile['job_name']
+        file_indexes= job_profile['file_indexes']
+        params      = job_profile['params']
+        eos_opacity = EoS_MESA_opacity(params, settings)
         
-            # save interm data
-            data = {}
-            data['lum'  ] = lum
-            data['rays' ] = rays_u[:, 0, :2]
-            data['ray_unit_vec'] = get_ray_unit_vec(rays_u[0].value)
-            data['area_per_ray'] = areas_u[0] #areas_u
-            data['rads' ] = rads
-            data['time' ] = mpdf.get_time()
-            data['mpdf_params'] = mpdf.params
-            
-            with open(f"{interm_dir}{job_nickname}_{file_index:05d}.lcgen.{xyzs}.{no_xy_txt}.json", 'w') as f:
-                mupl.json_dump(data, f, metadata)
-
-            comb[job_nickname][xyzs]['times_yr' ].append(data['time'].to_value(units.yr))
-            comb[job_nickname][xyzs]['lums_Lsun'].append(data['lum' ].to_value(units.Lsun))
-
-            
-            # plotting
-            plt.close('all')
-            fig, ax, outfilenames = plot_imshow(
-                no_xy, rays_u, rads, data_label="$I$", xyzs=xyzs, save_label=f"I",
-                job_profile=job_profile, file_index=file_index, notes=data, output_dir=output_dir, verbose=verbose_loop)
-            fig, ax, outfilenames = plot_imshow(
-                no_xy, rays_u, inds%20, data_label="index % 20 of the most contributed", xyzs=xyzs, save_label=f"dinds",
-                job_profile=job_profile, file_index=file_index, cmap='turbo', notes=data, output_dir=output_dir, verbose=verbose_loop)
-            fig, ax, outfilenames = plot_imshow(
-                no_xy, rays_u, contr, data_label="contribution fraction of the most contributed", xyzs=xyzs, save_label=f"contr",
-                job_profile=job_profile, file_index=file_index, cmap='seismic', notes=data, output_dir=output_dir, verbose=verbose_loop)
-            #fig, ax, outfilenames = plot_imshow(
-            #    no_xy, rays_u, np.abs(anses_fft), data_label="FFt of $I$", xyzs=xyzs, save_label=f"I-fft",
-            #    norm=mpl.colors.LogNorm(),
-            #    job_profile=job_profile, file_index=file_index, notes=data, output_dir=output_dir, verbose=verbose_loop)
-
-
-            # record time used
-            python_time_ended = datetime.utcnow()
-            python_time__used  = python_time_ended - python_time_start
-            print(f"Ended: {python_time_ended.isoformat()}\nTime Used: {python_time__used}\n")
-            
-
-plt.close('all')
-with open(f"{interm_dir}lcgen.{no_xy_txt}.json", 'w') as f:
-    mupl.json_dump(comb, f, metadata)
-
-
-# In[41]:
-
-
-for job_nickname in job_nicknames:
-    fig, ax = plt.subplots(figsize=(10, 8))
-    for xyzs in xyzs_list:
-        ax.semilogy(comb[job_nickname][xyzs]['times_yr'], comb[job_nickname][xyzs]['lums_Lsun'], 'o--', label=f"Viewed from +{xyzs[2]}")
-    ax.legend()
-    ax.set_xlabel('Time / yr')
-    ax.set_ylabel('Luminosity / Lsun')
-    ax.set_xlim(0., 45.)
-    ax.set_ylim(1e4, 5e6)
-    outfilename_noext = f"{output_dir}LC_{job_profile['nickname']}_{no_xy_txt}"
+        for file_index in file_indexes:
+            # init
     
-    # write pdf
-    outfilename = f"{outfilename_noext}.pdf"
-    fig.savefig(outfilename)
-    if is_verbose(verbose, 'note'):
-        say('note', None, verbose, f"Fig saved to {outfilename}.")
+            mpdf = mpdf_read(job_name, file_index, eos_opacity, reset_xyz_by='R1', verbose=1)
+            mpdf.calc_sdf_params(['R1'])
+            sdf  = mpdf.data['gas']
+            srcfuncs = mpdf.const['sigma_sb'] * sdf['T']**4 / pi
+            sdf['srcfunc'] = srcfuncs
+            for xyzs in xyzs_list:
+                xyzs_names_list = [x for x in xyzs]
     
-    # write png (with plot title)
-    ax.set_title(f"Light curve ({job_nickname}, {no_xy_txt} rays)")
-    outfilename = f"{outfilename_noext}.png"
-    fig.savefig(outfilename)
-    if is_verbose(verbose, 'note'):
-        say('note', None, verbose, f"Fig saved to {outfilename}.")
+                
+                # record time used
+                python_time_start = datetime.utcnow()
+                print(f"Start: {python_time_start.isoformat()}")
+                print(f"\tWorking on {job_nickname}_{file_index:05d}_{xyzs}...")
+    
+                
+                # get rays
+                rays, areas, dXs = get_xy_grids_of_rays(
+                    sdf, no_xy=no_xy, frac_contained=100., use_adaptive_grid=False, xyzs_names_list=xyzs_names_list)
+                pts    = np.array(sdf[xyzs_names_list])
+                hs     = np.array(sdf[ 'h' ])    # npart-shaped array
+                kernel = sdf.kernel
+                kernel_rad = float(kernel.get_radius())
+                col_kernel = kernel.get_column_kernel_func(samples=1000)
+                
+                rays_u = (rays * mpdf.units['dist']).to(units.au)
+                areas_u = (areas * mpdf.units['dist']**2).to(units.au**2)
+    
+                
+                # do integration without error estimation
+                ans = integrate_along_ray_gridxy_ind(sdf, srcfuncs, rays, xyzs_names_list=xyzs_names_list, verbose=99)
+                rads, inds, contr, pts_order_used = ans
+                rads = (rads * mpdf.units['sigma_sb'] * mpdf.units['temp']**4 / units.sr).cgs
+                inds *= units.dimensionless_unscaled
+                contr = 100 * contr * units.percent
+                lum = ((4 * pi * units.sr) * (rads * areas_u)).sum().to(units.solLum)
+                #anses_fft = fft.fft2(rads.reshape(no_xy).value)
+            
+                # save interm data
+                data = {}
+                data['lum'  ] = lum
+                data['rays' ] = rays_u[:, 0, :2]
+                data['ray_unit_vec'] = get_ray_unit_vec(rays_u[0].value)
+                data['area_per_ray'] = areas_u[0] #areas_u
+                data['rads' ] = rads
+                data['time' ] = mpdf.get_time()
+                data['mpdf_params'] = mpdf.params
+                
+                with open(f"{interm_dir}{job_nickname}_{file_index:05d}.lcgen.{xyzs}.{no_xy_txt}.json", 'w') as f:
+                    mupl.json_dump(data, f, metadata)
+    
+                comb[job_nickname][xyzs]['times_yr' ].append(data['time'].to_value(units.yr))
+                comb[job_nickname][xyzs]['lums_Lsun'].append(data['lum' ].to_value(units.Lsun))
+    
+                
+                # plotting
+                if False:
+                    plt.close('all')
+                    fig, ax, outfilenames = plot_imshow(
+                        no_xy, rays_u, rads, data_label="$I$",
+                        xyzs=xyzs, save_label=f"I",
+                        job_profile=job_profile, file_index=file_index, notes=data,
+                        output_dir=output_dir, verbose=verbose_loop)
+                    fig, ax, outfilenames = plot_imshow(
+                        no_xy, rays_u, inds%20, data_label="index % 20 of the most contributed",
+                        xyzs=xyzs, save_label=f"dinds",
+                        job_profile=job_profile, file_index=file_index, cmap='turbo', notes=data,
+                        output_dir=output_dir, verbose=verbose_loop)
+                    fig, ax, outfilenames = plot_imshow(
+                        no_xy, rays_u, contr, data_label="contribution fraction of the most contributed",
+                        xyzs=xyzs, save_label=f"contr",
+                        job_profile=job_profile, file_index=file_index, cmap='seismic', notes=data,
+                        output_dir=output_dir, verbose=verbose_loop)
+                    #fig, ax, outfilenames = plot_imshow(
+                    #    no_xy, rays_u, np.abs(anses_fft), data_label="FFt of $I$", xyzs=xyzs, save_label=f"I-fft",
+                    #    norm=mpl.colors.LogNorm(),
+                    #    job_profile=job_profile, file_index=file_index, notes=data, output_dir=output_dir, verbose=verbose_loop)
+    
+    
+                # record time used
+                python_time_ended = datetime.utcnow()
+                python_time__used  = python_time_ended - python_time_start
+                print(f"Ended: {python_time_ended.isoformat()}\nTime Used: {python_time__used}\n")
+
+        
+        # save data for now
+        with open(f"{interm_dir}lcgen.{no_xy_txt}.json.part", 'w') as f:
+            mupl.json_dump(comb, f, metadata)
+
+        
+        #plotting
+        plt.close('all')
+        fig, ax = plt.subplots(figsize=(10, 8))
+        for xyzs in xyzs_list:
+            ax.semilogy(comb[job_nickname][xyzs]['times_yr'], comb[job_nickname][xyzs]['lums_Lsun'], 'o--', label=f"Viewed from +{xyzs[2]}")
+        ax.legend()
+        ax.set_xlabel('Time / yr')
+        ax.set_ylabel('Luminosity / Lsun')
+        ax.set_xlim(0., 45.)
+        ax.set_ylim(1e4, 5e6)
+        outfilename_noext = f"{output_dir}LC_{job_nickname}_{no_xy_txt}"
+        
+        # write pdf
+        outfilename = f"{outfilename_noext}.pdf"
+        fig.savefig(outfilename)
+        if is_verbose(verbose, 'note'):
+            say('note', None, verbose, f"Fig saved to {outfilename}.")
+        
+        # write png (with plot title)
+        ax.set_title(f"Light curve ({job_nickname}, {no_xy_txt} rays)")
+        outfilename = f"{outfilename_noext}.png"
+        fig.savefig(outfilename)
+        if is_verbose(verbose, 'note'):
+            say('note', None, verbose, f"Fig saved to {outfilename}.")
+                
+    
+    plt.close('all')
+    with open(f"{interm_dir}lcgen.{no_xy_txt}.json", 'w') as f:
+        mupl.json_dump(comb, f, metadata)
+
+
+#     for job_nickname in job_nicknames:
+#         fig, ax = plt.subplots(figsize=(10, 8))
+#         for xyzs in xyzs_list:
+#             ax.semilogy(comb[job_nickname][xyzs]['times_yr'], comb[job_nickname][xyzs]['lums_Lsun'], 'o--', label=f"Viewed from +{xyzs[2]}")
+#         ax.legend()
+#         ax.set_xlabel('Time / yr')
+#         ax.set_ylabel('Luminosity / Lsun')
+#         ax.set_xlim(0., 45.)
+#         ax.set_ylim(1e4, 5e6)
+#         outfilename_noext = f"{output_dir}LC_{job_profile['nickname']}_{no_xy_txt}"
+#         
+#         # write pdf
+#         outfilename = f"{outfilename_noext}.pdf"
+#         fig.savefig(outfilename)
+#         if is_verbose(verbose, 'note'):
+#             say('note', None, verbose, f"Fig saved to {outfilename}.")
+#         
+#         # write png (with plot title)
+#         ax.set_title(f"Light curve ({job_nickname}, {no_xy_txt} rays)")
+#         outfilename = f"{outfilename_noext}.png"
+#         fig.savefig(outfilename)
+#         if is_verbose(verbose, 'note'):
+#             say('note', None, verbose, f"Fig saved to {outfilename}.")
+
+# In[ ]:
+
+
+
 
