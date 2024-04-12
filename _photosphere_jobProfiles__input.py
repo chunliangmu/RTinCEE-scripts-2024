@@ -38,7 +38,7 @@ JOB_PROFILES_LIST = (
         'raw_dir' : '../photosphere/luis_2md/',
         'file_prefix': 'light',
         #'job_name': '../photosphere/luis_2md/light', # deprecated keyword- will still be added automatically later
-        'file_indexes': np.arange(0, 17600+1, 100),
+        'file_indexes': np.array([0, 1200, 4800, 17600]), #np.arange(0, 17600+1, 100),
         'plot_title_suffix': f" for 1.7{Msun_str} primary star with Nucleation Dust",
         'ieos': 10,
         'params': {
@@ -55,7 +55,7 @@ JOB_PROFILES_LIST = (
         'raw_dir' : '../photosphere/luis_4md/',
         'file_prefix': 'light',
         #'job_name': '../photosphere/luis_4md/light',
-        'file_indexes': np.arange(0, 17600+1, 100),
+        'file_indexes': np.array([0, 1200, 4800, 17600]), #np.arange(0, 17600+1, 100),
         'plot_title_suffix': f" for 3.7{Msun_str} primary star with Nucleation Dust",
         'ieos': 10,
         'params': {

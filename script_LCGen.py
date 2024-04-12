@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[3]:
+# In[1]:
 
 
 """Scripts for analyzing of phantom outputs.
@@ -19,7 +19,7 @@ This script generate lightcurves (LC) by doing radiative transfer on a grid.
 
 # ## Imports & Settings
 
-# In[4]:
+# In[2]:
 
 
 import numpy as np
@@ -38,7 +38,7 @@ from datetime import datetime
 #from os import path
 
 
-# In[5]:
+# In[3]:
 
 
 # import my modules listed in ./main/
@@ -56,7 +56,7 @@ from multiprocessing import cpu_count, Pool #Process, Queue
 NPROCESSES = 1 if cpu_count() is None else max(cpu_count(), 1)
 
 
-# In[6]:
+# In[4]:
 
 
 # settings
@@ -87,7 +87,7 @@ if __name__ == '__main__' and is_verbose(verbose, 'note'):
     say('note', "script", verbose, f"Will use {NPROCESSES} processes for parallelization")
 
 
-# In[7]:
+# In[5]:
 
 
 from clmuphantomlib.log import say, is_verbose
@@ -99,6 +99,7 @@ from clmuphantomlib.light import integrate_along_ray_grid, integrate_along_ray_g
 
 #  import (general)
 import numpy as np
+from numpy import typing as npt
 import numba
 from numba import jit, prange
 import sarracen
@@ -228,120 +229,11 @@ def integrate_error_along_ray(
     return dat_errs, dat_bwd_inc_errs
 
 
-# #### Test codes
-
 # In[8]:
 
 
-# test runs
 @jit(nopython=True, parallel=True)
-def _integrate_along_ray_gridxy_sub_parallel_analysis_test(
-    pts_ordered          : np.ndarray,    # (npart, 3)-shaped
-    hs_ordered           : np.ndarray,    # (npart,  )-shaped
-    mkappa_div_h2_ordered: np.ndarray,    # (npart,  )-shaped
-    srcfuncs_ordered     : np.ndarray,    # (npart,  )-shaped
-    rays                 : np.ndarray,    # (nray, 2, 3)-shaped
-    kernel_rad           : float,
-    col_kernel           : numba.core.registry.CPUDispatcher,
-    pts_order            : np.ndarray,    # (npart,  )-shaped
-    rel_tol              : float = 1e-15, # because float64 is only has only 16 digits accuracy
-) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
-    """Sub process for integrate_along_ray_gridxy(). Numba parallel version (using prange).
-
-    Unit vec must be [0., 0., 1.] (i.e. all rays must point upwards towards +z).
-
-    Private function. Assumes specific input type. See source code comments.
-
-    """
-    #raise NotImplementedError
-
-    nray  = len(rays)
-    npart = len(srcfuncs_ordered)
-    ndim  = pts_ordered.shape[-1]
-    anses = np.zeros(nray)
-    indes = np.zeros(nray, dtype=np.int64)    # indexes of max contribution particle
-    contr = np.zeros(nray)    # contribution of the max contribution particle
-    jused = np.full(npart, False)    # is j-th particle in the ordered list used for this calculation?
-
-    # error tolerance of tau (part 1)
-    tol_tau_base = np.log(srcfuncs_ordered.sum()) - np.log(rel_tol)
-
-    # hr = h * kernel_rad
-    hrs_ordered = hs_ordered * kernel_rad
-
-    # loop over ray
-    for i in prange(nray):
-        ray = rays[i]
-        tau = 0.
-        ans = 0.
-        dans= 0.
-        dans_max_tmp = 0.
-        ind = -1
-
-        #   xy-grid specific solution
-        ray_x = ray[0, 0]
-        ray_y = ray[0, 1]
-        
-        # loop over particles
-        #for pt, hr, mkappa_div_h2, srcfunc in zip(
-        #    pts_ordered, hrs_ordered, mkappa_div_h2_ordered, srcfuncs_ordered):
-        for j in range(npart):
-            pt = pts_ordered[j]
-            hr = hrs_ordered[j]
-            
-            # check if the particle is within range
-            #   general solution
-            #q = get_dist2_from_pt_to_line_nb(pt, ray)**0.5 / h
-            #if q < kernel_rad:
-            #   xy-grid specific solution
-            if ray_x - hr < pt[0] and pt[0] < ray_x + hr and ray_y - hr < pt[1] and pt[1] < ray_y + hr:
-                h = hs_ordered[ j]
-                q = ((pt[0] - ray_x)**2 + (pt[1] - ray_y)**2)**0.5 / h
-                if q < kernel_rad:
-
-                    jused[j] = True
-                    
-                    # now do radiative transfer
-                    
-                    mkappa_div_h2 = mkappa_div_h2_ordered[j]
-                    srcfunc = srcfuncs_ordered[j]
-                    
-                    dtau = mkappa_div_h2 * col_kernel(q, ndim-1)
-                    #tau += dtau/2.
-                    dans = np.exp(-tau) * dtau * srcfunc
-                    ans += dans
-                    tau += dtau#/2.
-
-                    # note down the largest contributor
-                    if dans > dans_max_tmp:
-                        dans_max_tmp = dans
-                        ind = pts_order[j]
-    
-                    # terminate the calc for this ray if tau is sufficient large
-                    #    such that the relative error on ans is smaller than rel_tol
-                    # i.e. since when tau > np.log(srcfuncs_ordered.sum()) - np.log(rel_tol) - np.log(ans),
-                    #    we know that ans[i] - ans[i][k] < rel_tol * ans[i]
-                    # see my notes for derivation
-                    if tau > tol_tau_base - np.log(ans):
-                        break
-            
-        anses[i] = ans
-        indes[i] = ind
-        contr[i] = dans_max_tmp / ans
-    
-    return anses, indes, contr, jused
-
-
-#_integrate_along_ray_gridxy_sub_parallel_analysis = _integrate_along_ray_gridxy_sub_parallel_analysis_test
-
-
-# #### Actual code
-
-# In[9]:
-
-
-@jit(nopython=True, parallel=True)
-def _integrate_along_ray_gridxy_sub_parallel_analysis(
+def _integrate_along_ray_gridxy_sub_parallel_analysis_old_bkp(
     pts_ordered          : np.ndarray,    # (npart, 3)-shaped
     hs_ordered           : np.ndarray,    # (npart,  )-shaped
     mkappa_div_h2_ordered: np.ndarray,    # (npart,  )-shaped
@@ -437,6 +329,160 @@ def _integrate_along_ray_gridxy_sub_parallel_analysis(
     
     return anses, indes, contr, jused
 
+
+# #### Test codes
+
+# In[9]:
+
+
+# test runs
+@jit(nopython=True, parallel=True)
+def _integrate_along_ray_gridxy_sub_parallel_analysis_test(
+    pts_ordered          : npt.NDArray[np.float_],    # (npart, 3)-shaped
+    hs_ordered           : npt.NDArray[np.float_],    # (npart,  )-shaped
+    mkappa_div_h2_ordered: npt.NDArray[np.float_],    # (npart,  )-shaped
+    srcfuncs_ordered     : npt.NDArray[np.float_],    # (npart,  )-shaped
+    rays                 : npt.NDArray[np.float_],    # (nray, 2, 3)-shaped
+    kernel_rad           : float,
+    col_kernel           : numba.core.registry.CPUDispatcher,
+    pts_order            : npt.NDArray[np.float_],    # (npart,  )-shaped
+    rel_tol              : float = 1e-15, # because float64 is only has only 16 digits accuracy
+) -> tuple[
+    npt.NDArray[np.float_],    # anses
+    npt.NDArray[np.float_],    # pones
+    npt.NDArray[np.float_],    # ptaus
+    npt.NDArray[np.int64 ],    # indes
+    npt.NDArray[np.float_],    # contr
+    npt.NDArray[np.bool_ ],    # jused
+]:
+    """Sub process for integrate_along_ray_gridxy(). Numba parallel version (using prange).
+
+    Unit vec must be [0., 0., 1.] (i.e. all rays must point upwards towards +z).
+
+    Private function. Assumes specific input type. See source code comments.
+
+    Returns
+    -------
+    anses, pones, ptaus, indes, contr, jused
+    
+    anses: (nray,)-shaped np.ndarray[float]
+        Radiance (i.e. specific intensities) for each ray.
+
+    pones: (nray,)-shaped np.ndarray[float]
+        <1> for each pixel,
+        i.e. same integration of radiance but for a constant 'srcfunc' of '1', for each ray.
+        Helpful for consistency check (should be more or less 1 where ptaus is nan.)
+        do weighted average by weight of areas per pixel to get the total area of the object!
+
+    ptaus: (nray,)-shaped np.ndarray[float]
+        The optical depth for each pixel
+        *** WILL BE np.nan IF OPTICAL DEPTH IS DEEP (which will be MOST OF THE TIME.)  ***
+        can be used as an alternative way to calculate the area of the object.
+
+    indes: (nray,)-shaped np.ndarray[int]
+        indexes of max contribution particle
+
+    contr: (nray,)-shaped np.ndarray[float]
+        relative contribution (in fractions) of the max contribution particle
+
+    jused: (npart,)-shaped np.ndarray[bool]
+        whether j-th particle was used in the calculation.
+
+    """
+    #raise NotImplementedError
+
+    nray  = len(rays)
+    npart = len(srcfuncs_ordered)
+    ndim  = pts_ordered.shape[-1]
+    anses = np.zeros(nray)
+    indes = np.zeros(nray, dtype=np.int64)    # indexes of max contribution particle
+    contr = np.zeros(nray)    # relative contribution of the max contribution particle
+    jused = np.full( npart, False)    # is j-th particle in the ordered list used for this calculation?
+    pones = np.zeros(nray)
+    ptaus = np.full(nray, np.nan)    # lower bound of the optical depth
+    
+
+    # error tolerance of tau (part 1)
+    tol_tau_base = np.log(srcfuncs_ordered.sum()) - np.log(rel_tol)
+
+    # hr = h * kernel_rad
+    hrs_ordered = hs_ordered * kernel_rad
+
+    # loop over ray
+    for i in prange(nray):
+        ray = rays[i]
+        tau = 0.
+        ans = 0.
+        dans= 0.
+        dans_max_tmp = 0.
+        ind = -1
+        fac = 0. # effectively <1>
+        dfac= 0. # factor
+
+        #   xy-grid specific solution
+        ray_x = ray[0, 0]
+        ray_y = ray[0, 1]
+        
+        # loop over particles
+        #for pt, hr, mkappa_div_h2, srcfunc in zip(
+        #    pts_ordered, hrs_ordered, mkappa_div_h2_ordered, srcfuncs_ordered):
+        for j in range(npart):
+            pt = pts_ordered[j]
+            hr = hrs_ordered[j]
+            
+            # check if the particle is within range
+            #   general solution
+            #q = get_dist2_from_pt_to_line_nb(pt, ray)**0.5 / h
+            #if q < kernel_rad:
+            #   xy-grid specific solution
+            if ray_x - hr < pt[0] and pt[0] < ray_x + hr and ray_y - hr < pt[1] and pt[1] < ray_y + hr:
+                h = hs_ordered[ j]
+                q = ((pt[0] - ray_x)**2 + (pt[1] - ray_y)**2)**0.5 / h
+                if q < kernel_rad:
+
+                    jused[j] = True
+                    
+                    # now do radiative transfer
+                    
+                    mkappa_div_h2 = mkappa_div_h2_ordered[j]
+                    srcfunc = srcfuncs_ordered[j]
+                    
+                    dtau = mkappa_div_h2 * col_kernel(q, ndim-1)
+                    #tau += dtau/2.
+                    dfac = np.exp(-tau) * (1. - np.exp(-dtau))
+                    dans = dfac * srcfunc
+                    ans += dans
+                    fac += dfac
+                    tau += dtau#/2.
+
+                    # note down the largest contributor
+                    if dans > dans_max_tmp:
+                        dans_max_tmp = dans
+                        ind = pts_order[j]
+    
+                    # terminate the calc for this ray if tau is sufficient large
+                    #    such that the relative error on ans is smaller than rel_tol
+                    # i.e. since when tau > np.log(srcfuncs_ordered.sum()) - np.log(rel_tol) - np.log(ans),
+                    #    we know that ans[i] - ans[i][k] < rel_tol * ans[i]
+                    # see my notes for derivation
+                    if tau > tol_tau_base - np.log(ans):
+                        break
+
+        else:
+            ptaus[i]=tau
+            
+        anses[i] = ans
+        indes[i] = ind
+        contr[i] = dans_max_tmp / ans
+        pones[i] = fac
+    
+    return anses, pones, ptaus, indes, contr, jused
+
+
+_integrate_along_ray_gridxy_sub_parallel_analysis = _integrate_along_ray_gridxy_sub_parallel_analysis_test
+
+
+# #### stable code (mostly)
 
 # In[10]:
 
@@ -544,7 +590,7 @@ def integrate_along_ray_gridxy_ind(
     rays    : np.ndarray,
     ray_unit_vec: np.ndarray|None = None,
     kernel  : sarracen.kernels.BaseKernel = None,
-    parallel: bool = True,
+    parallel: bool = False,
     err_h   : float = 1.0,
     rel_tol : float = 1e-15,
     sdf_kdtree : kdtree.KDTree = None,
@@ -627,7 +673,7 @@ def integrate_along_ray_gridxy_ind(
         raise ValueError(f"Inconsistent ray_unit_vec {ray_unit_vec} with the rays.")
 
     if is_verbose(verbose, 'warn') and ndim != 3:
-        say('warn', 'integrate_along_ray_gridxy_err_ind()', verbose, f"ndim == {ndim} is not 3.")
+        say('warn', None, verbose, f"ndim == {ndim} is not 3.")
 
     # (npart-shaped array of the indices of the particles from closest to the observer to the furthest)
     pts_order             = np.argsort( np.sum(pts * ray_unit_vec, axis=-1) )[::-1]
@@ -637,19 +683,23 @@ def integrate_along_ray_gridxy_ind(
     srcfuncs_ordered      = srcfuncs[pts_order]
 
     # get used particles indexes
-    anses, indes, contr, jused = _integrate_along_ray_gridxy_sub_parallel_analysis(
-        pts_ordered, hs_ordered, mkappa_div_h2_ordered, srcfuncs_ordered, rays, kernel_rad, col_kernel, pts_order, rel_tol=rel_tol)
+    if parallel:
+        #anses, indes, contr, jused = _integrate_along_ray_gridxy_sub_parallel_analysis(
+        anses, areas, ptaus, indes, contr, jused = _integrate_along_ray_gridxy_sub_parallel_analysis(
+            pts_ordered, hs_ordered, mkappa_div_h2_ordered, srcfuncs_ordered, rays, kernel_rad, col_kernel, pts_order, rel_tol=rel_tol)
+    else:
+        raise NotImplementedError("parallel=False version of this function not yet implemented.")
 
     pts_order_used = pts_order[jused]
     if is_verbose(verbose, 'info'):
         nused = len(pts_order_used)
-        say('info', 'integrate_along_ray_gridxy_err_ind()', verbose,
+        say('info', None, verbose,
             f"{nused} particles actually participated calculation",
             f"({int(nused/npart*10000)/100.}% of all particles,",
             f"average {int(nused/nray*100)/100.} per ray.)", sep=' ')
 
     
-    return anses, indes, contr, pts_order_used
+    return anses, areas, ptaus, indes, contr, pts_order_used
 
 
 # #### integrate with error estiamtes
@@ -659,14 +709,14 @@ def integrate_along_ray_gridxy_ind(
 
 # integrate and integrate error
 
-#@jit(nopython=False)
+
 def integrate_along_ray_gridxy_err_ind(
     sdf     : sarracen.SarracenDataFrame,
     srcfuncs: np.ndarray,
     rays    : np.ndarray,
     ray_unit_vec: np.ndarray|None = None,
     kernel  : sarracen.kernels.BaseKernel = None,
-    parallel: bool = True,
+    parallel: bool = False,
     err_h   : float = 1.0,
     rel_tol : float = 1e-15,
     sdf_kdtree : kdtree.KDTree = None,
@@ -752,7 +802,7 @@ def integrate_along_ray_gridxy_err_ind(
         raise ValueError(f"Inconsistent ray_unit_vec {ray_unit_vec} with the rays.")
 
     if is_verbose(verbose, 'warn') and ndim != 3:
-        say('warn', 'integrate_along_ray_gridxy_err_ind()', verbose, f"ndim == {ndim} is not 3.")
+        say('warn', None, verbose, f"ndim == {ndim} is not 3.")
 
     # (npart-shaped array of the indices of the particles from closest to the observer to the furthest)
     pts_order             = np.argsort( np.sum(pts * ray_unit_vec, axis=-1) )[::-1]
@@ -762,13 +812,17 @@ def integrate_along_ray_gridxy_err_ind(
     srcfuncs_ordered      = srcfuncs[pts_order]
 
     # get used particles indexes
-    anses, indes, contr, jused = _integrate_along_ray_gridxy_sub_parallel_analysis(
-        pts_ordered, hs_ordered, mkappa_div_h2_ordered, srcfuncs_ordered, rays, kernel_rad, col_kernel, pts_order, rel_tol=rel_tol)
+    if parallel:
+        #anses, indes, contr, jused = _integrate_along_ray_gridxy_sub_parallel_analysis(
+        anses, areas, ptaus, indes, contr, jused = _integrate_along_ray_gridxy_sub_parallel_analysis(
+            pts_ordered, hs_ordered, mkappa_div_h2_ordered, srcfuncs_ordered, rays, kernel_rad, col_kernel, pts_order, rel_tol=rel_tol)
+    else:
+        raise NotImplementedError("Non-parallel version of this function not yet implemented.")
 
     pts_order_used = pts_order[jused]
     if is_verbose(verbose, 'info'):
         nused = len(pts_order_used)
-        say('info', 'integrate_along_ray_gridxy_err_ind()', verbose,
+        say('info', None, verbose,
             f"{nused} particles actually participated in calculation",
             f"({int(nused/npart*10000)/100.}% of all particles,",
             f"average {int(nused/nray*100)/100.} per ray.)", sep=' ')
@@ -783,7 +837,7 @@ def integrate_along_ray_gridxy_err_ind(
 
     if is_verbose(verbose, 'debug'):
         nused = len(pts_order_used)
-        say('debug', 'integrate_along_ray_gridxy_err_ind()', verbose,
+        say('debug', None, verbose,
             f"error calculation completed.",
             f"average relative error of srcfunc",
             f"{int((srcfuncs_err_orderedu/srcfuncs_ordered[jused]).sum()/len(pts_order_used)*10000)/100.}%",
@@ -794,7 +848,7 @@ def integrate_along_ray_gridxy_err_ind(
         srcfuncs_err_orderedu, rays, kernel_rad, col_kernel, pts_order, rel_tol=rel_tol)
     #raise NotImplementedError
     
-    return rads, errs
+    return rads, errs, areas, ptaus
 
 #integrate_along_ray_gridxy_ind = integrate_along_ray_gridxy_err_ind
 
@@ -906,7 +960,7 @@ def get_xy_grids_of_rays(
 
 # ### Plotting
 
-# In[114]:
+# In[14]:
 
 
 def plot_imshow(
@@ -1152,13 +1206,7 @@ def get_sph_error(
 # .
 # 
 
-# In[3]:
-
-
-
-
-
-# In[35]:
+# In[21]:
 
 
 if __name__ == '__main__':
@@ -1211,17 +1259,38 @@ if __name__ == '__main__':
     
                 
                 # do integration without error estimation
-                ans = integrate_along_ray_gridxy_ind(sdf, srcfuncs, rays, xyzs_names_list=xyzs_names_list, verbose=99)
-                rads, inds, contr, pts_order_used = ans
-                rads = (rads * mpdf.units['sigma_sb'] * mpdf.units['temp']**4 / units.sr).cgs
+                ans   = integrate_along_ray_gridxy_ind(sdf, srcfuncs, rays, xyzs_names_list=xyzs_names_list, parallel=True, verbose=verbose)
+                rads, areas_p, taus, inds, contr, pts_order_used = ans
+                rads  = (rads * mpdf.units['sigma_sb'] * mpdf.units['temp']**4 / units.sr).cgs
                 inds *= units.dimensionless_unscaled
                 contr = 100 * contr * units.percent
-                lum = ((4 * pi * units.sr) * (rads * areas_u)).sum().to(units.solLum)
+                lum   = ((4 * pi * units.sr) * (rads * areas_u)).sum().to(units.solLum)
+                area  = (areas_p * areas_u).sum()
+                area_2= (np.where(
+                    np.isnan(taus),
+                    1.,
+                    np.where(
+                        taus > 0.636, #PHOTOSPHERE_TAU,
+                        1.0,
+                        0.0,
+                    )) * areas_u).sum()
                 #anses_fft = fft.fft2(rads.reshape(no_xy).value)
+
+                if is_verbose(verbose, 'info'):
+                    say('info', 'main()', verbose,
+                        f"lum = {lum}",
+                        f"area (from <1>) = ({area  /areas_u.sum()*100: 5.1f}%) {area}",
+                        f"area (from tau) = ({area_2/areas_u.sum()*100: 5.1f}%) {area_2}",
+                        f"size (from <1>) = {area**0.5}",
+                        f"size (from tau) = {area_2**0.5}",
+                        f"total possible area = {areas_u.sum()}",
+                    )
             
                 # save interm data
                 data = {}
                 data['lum'  ] = lum
+                data['area' ] = area
+                data['area_2']= area_2
                 data['rays' ] = rays_u[:, 0, :2]
                 data['ray_unit_vec'] = get_ray_unit_vec(rays_u[0].value)
                 data['area_per_ray'] = areas_u[0] #areas_u
@@ -1300,34 +1369,4 @@ if __name__ == '__main__':
     plt.close('all')
     with open(f"{interm_dir}lcgen.{no_xy_txt}.json", 'w') as f:
         mupl.json_dump(comb, f, metadata)
-
-
-#     for job_nickname in job_nicknames:
-#         fig, ax = plt.subplots(figsize=(10, 8))
-#         for xyzs in xyzs_list:
-#             ax.semilogy(comb[job_nickname][xyzs]['times_yr'], comb[job_nickname][xyzs]['lums_Lsun'], 'o--', label=f"Viewed from +{xyzs[2]}")
-#         ax.legend()
-#         ax.set_xlabel('Time / yr')
-#         ax.set_ylabel('Luminosity / Lsun')
-#         ax.set_xlim(0., 45.)
-#         ax.set_ylim(1e4, 5e6)
-#         outfilename_noext = f"{output_dir}LC_{job_profile['nickname']}_{no_xy_txt}"
-#         
-#         # write pdf
-#         outfilename = f"{outfilename_noext}.pdf"
-#         fig.savefig(outfilename)
-#         if is_verbose(verbose, 'note'):
-#             say('note', None, verbose, f"Fig saved to {outfilename}.")
-#         
-#         # write png (with plot title)
-#         ax.set_title(f"Light curve ({job_nickname}, {no_xy_txt} rays)")
-#         outfilename = f"{outfilename_noext}.png"
-#         fig.savefig(outfilename)
-#         if is_verbose(verbose, 'note'):
-#             say('note', None, verbose, f"Fig saved to {outfilename}.")
-
-# In[ ]:
-
-
-
 
