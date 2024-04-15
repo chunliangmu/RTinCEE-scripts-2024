@@ -3,6 +3,8 @@
 
 """
 Input Parameters describing sims saved in ../photosphere/
+
+This one is for testing.
 """
 
 # imports and internal settings
@@ -11,7 +13,7 @@ from astropy import units
 Msun_str = units.Msun.to_string('latex_inline')
 
 # output directory- remember to add the final sep '/' at the end
-interm_dir = '../interm/'
+interm_dir = '../interm/test_'
 output_dir = '../fig/'
 out_dir    = output_dir  # deprecated keyword
 
