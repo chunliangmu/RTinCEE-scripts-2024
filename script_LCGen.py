@@ -1206,7 +1206,7 @@ def get_sph_error(
 # .
 # 
 
-# In[21]:
+# In[17]:
 
 
 if __name__ == '__main__':
@@ -1215,19 +1215,21 @@ if __name__ == '__main__':
     comb = {}
     
     for job_nickname in job_nicknames: #['2md', ]:
-        comb[job_nickname] = {
-            xyzs: {
-                'times_yr' : [],
-                'lums_Lsun': [],
-            } for xyzs in xyzs_list
-        }
         job_profile = JOB_PROFILES_DICT[job_nickname]
         job_name    = job_profile['job_name']
         file_indexes= job_profile['file_indexes']
         params      = job_profile['params']
         eos_opacity = EoS_MESA_opacity(params, settings)
         
-        for file_index in file_indexes:
+        comb[job_nickname] = {
+            xyzs: {
+                'times': np.full(len(file_indexes), np.nan) * units.yr,
+                'lums' : np.full(len(file_indexes), np.nan) * units.Lsun,
+                'areas': np.full(len(file_indexes), np.nan) * units.au**2,
+            } for xyzs in xyzs_list
+        }
+        
+        for ifile, file_index in enumerate(file_indexes):
             # init
     
             mpdf = mpdf_read(job_name, file_index, eos_opacity, reset_xyz_by='R1', verbose=1)
@@ -1298,11 +1300,11 @@ if __name__ == '__main__':
                 data['time' ] = mpdf.get_time()
                 data['mpdf_params'] = mpdf.params
                 
-                with open(f"{interm_dir}{job_nickname}_{file_index:05d}.lcgen.{xyzs}.{no_xy_txt}.json", 'w') as f:
-                    mupl.json_dump(data, f, metadata)
+                mupl.hdf5_dump(data, f"{interm_dir}{job_nickname}_{file_index:05d}.lcgen.{xyzs}.{no_xy_txt}.hdf5", metadata)
     
-                comb[job_nickname][xyzs]['times_yr' ].append(data['time'].to_value(units.yr))
-                comb[job_nickname][xyzs]['lums_Lsun'].append(data['lum' ].to_value(units.Lsun))
+                comb[job_nickname][xyzs]['times'][ifile] = data['time']
+                comb[job_nickname][xyzs]['lums' ][ifile] = data['lum' ]
+                comb[job_nickname][xyzs]['areas'][ifile] = data['area']
     
                 
                 # plotting
@@ -1336,7 +1338,7 @@ if __name__ == '__main__':
 
         
         # save data for now
-        with open(f"{interm_dir}lcgen.{no_xy_txt}.json.part", 'w') as f:
+        with open(f"{interm_dir}lcgen.{no_xy_txt}.json", 'w') as f:
             mupl.json_dump(comb, f, metadata)
 
         
@@ -1344,7 +1346,9 @@ if __name__ == '__main__':
         plt.close('all')
         fig, ax = plt.subplots(figsize=(10, 8))
         for xyzs in xyzs_list:
-            ax.semilogy(comb[job_nickname][xyzs]['times_yr'], comb[job_nickname][xyzs]['lums_Lsun'], 'o--', label=f"Viewed from +{xyzs[2]}")
+            ax.semilogy(
+                comb[job_nickname][xyzs]['times'].to_value(units.yr), comb[job_nickname][xyzs]['lums'].to_value(units.Lsun),
+                'o--', label=f"Viewed from +{xyzs[2]}")
         ax.legend()
         ax.set_xlabel('Time / yr')
         ax.set_ylabel('Luminosity / Lsun')
@@ -1367,6 +1371,5 @@ if __name__ == '__main__':
                 
     
     plt.close('all')
-    with open(f"{interm_dir}lcgen.{no_xy_txt}.json", 'w') as f:
-        mupl.json_dump(comb, f, metadata)
+    mupl.hdf5_dump(comb, f"{interm_dir}lcgen.{no_xy_txt}.hdf5", metadata)
 
