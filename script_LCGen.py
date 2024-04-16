@@ -1226,6 +1226,18 @@ if __name__ == '__main__':
                 'times': np.full(len(file_indexes), np.nan) * units.yr,
                 'lums' : np.full(len(file_indexes), np.nan) * units.Lsun,
                 'areas': np.full(len(file_indexes), np.nan) * units.au**2,
+                # no of particles at the photosphere - lower bound (weighted average per pixel, weighted by lums contribution)
+                # i.e. how resolved the photosphere is
+                'npt_at_ph_lb': np.full(len(file_indexes), -1) * units.dimensionless_unscaled,
+                '_meta_': {
+                    'lums' : { 'Description': "Luminosity.", },
+                    'areas': { 'Description': (
+                        "Visible size of the simulated object." +
+                        "(i.e. pixel * (area per pixel) * (tau if tau<1 else 1)"), },
+                    'npt_at_ph_lb': { 'Description': (
+                            "no of particles at the photosphere - lower bound" +
+                            "(weighted average per pixel, weighted by lums contribution per pixel)"), },
+                },
             } for xyzs in xyzs_list
         }
         
@@ -1266,6 +1278,10 @@ if __name__ == '__main__':
                 rads  = (rads * mpdf.units['sigma_sb'] * mpdf.units['temp']**4 / units.sr).cgs
                 inds *= units.dimensionless_unscaled
                 contr = 100 * contr * units.percent
+                npt_at_ph_lb = np.average(
+                    np.where(np.isnan(contr), 0., 1. / contr),
+                    weights=(rads * areas_u).value,
+                ).to(units.dimensionless_unscaled)
                 lum   = ((4 * pi * units.sr) * (rads * areas_u)).sum().to(units.solLum)
                 area  = (areas_p * areas_u).sum()
                 area_2= (np.where(
@@ -1286,25 +1302,38 @@ if __name__ == '__main__':
                         f"size (from <1>) = {area**0.5}",
                         f"size (from tau) = {area_2**0.5}",
                         f"total possible area = {areas_u.sum()}",
+                        f"lower bound of the # of particles at photosphere, weighted avg over lum per pixels = {npt_at_ph_lb} ",
                     )
             
                 # save interm data
                 data = {}
                 data['lum'  ] = lum
-                data['area' ] = area
-                data['area_2']= area_2
+                data['area_one'] = area
+                data['area_tau'] = area_2
+                data['npt_at_ph_lb'] = npt_at_ph_lb
+                data['xyzs' ] = xyzs
+                data['time' ] = mpdf.get_time()
+                data['mpdf_params'] = mpdf.params
                 data['rays' ] = rays_u[:, 0, :2]
                 data['ray_unit_vec'] = get_ray_unit_vec(rays_u[0].value)
                 data['area_per_ray'] = areas_u[0] #areas_u
                 data['rads' ] = rads
-                data['time' ] = mpdf.get_time()
-                data['mpdf_params'] = mpdf.params
+                data['contr'] = contr
+                
+                data['_meta_'] = {
+                    'npt_at_ph_lb': comb[job_nickname][xyzs]['_meta_']['npt_at_ph_lb'],
+                    'rays' : { 'Description': "Pixel centers on the 2D plane defined by xyzs.", },
+                    'rads' : { 'Description': "Specific intensity per pixel.", },
+                    'contr': { 'Description': "Maximum contributed particle's contribution towards the specific intensity, per pixel.", },
+                }
+
                 
                 mupl.hdf5_dump(data, f"{interm_dir}{job_nickname}_{file_index:05d}.lcgen.{xyzs}.{no_xy_txt}.hdf5", metadata)
     
                 comb[job_nickname][xyzs]['times'][ifile] = data['time']
                 comb[job_nickname][xyzs]['lums' ][ifile] = data['lum' ]
-                comb[job_nickname][xyzs]['areas'][ifile] = data['area']
+                comb[job_nickname][xyzs]['areas'][ifile] = data['area_one']
+                comb[job_nickname][xyzs]['npt_at_ph_lb'][ifile] = data['npt_at_ph_lb']
     
                 
                 # plotting
