@@ -1240,7 +1240,8 @@ if __name__ == '__main__':
                 },
             } for xyzs in xyzs_list
         }
-        
+
+            
         for ifile, file_index in enumerate(file_indexes):
             # init
     
@@ -1249,121 +1250,127 @@ if __name__ == '__main__':
             sdf  = mpdf.data['gas']
             srcfuncs = mpdf.const['sigma_sb'] * sdf['T']**4 / pi
             sdf['srcfunc'] = srcfuncs
-            for xyzs in xyzs_list:
-                xyzs_names_list = [x for x in xyzs]
-    
-                
-                # record time used
-                python_time_start = datetime.utcnow()
-                print(f"Start: {python_time_start.isoformat()}")
-                print(f"\tWorking on {job_nickname}_{file_index:05d}_{xyzs}...")
-    
-                
-                # get rays
-                rays, areas, dXs = get_xy_grids_of_rays(
-                    sdf, no_xy=no_xy, frac_contained=100., use_adaptive_grid=False, xyzs_names_list=xyzs_names_list)
-                pts    = np.array(sdf[xyzs_names_list])
-                hs     = np.array(sdf[ 'h' ])    # npart-shaped array
-                kernel = sdf.kernel
-                kernel_rad = float(kernel.get_radius())
-                col_kernel = kernel.get_column_kernel_func(samples=1000)
-                
-                rays_u = (rays * mpdf.units['dist']).to(units.au)
-                areas_u = (areas * mpdf.units['dist']**2).to(units.au**2)
-    
-                
-                # do integration without error estimation
-                ans   = integrate_along_ray_gridxy_ind(sdf, srcfuncs, rays, xyzs_names_list=xyzs_names_list, parallel=True, verbose=verbose)
-                rads, areas_p, taus, inds, contr, pts_order_used = ans
-                rads  = (rads * mpdf.units['sigma_sb'] * mpdf.units['temp']**4 / units.sr).cgs
-                inds *= units.dimensionless_unscaled
-                contr = 100 * contr * units.percent
-                npt_at_ph_lb = np.average(
-                    np.where(np.isnan(contr), 0., 1. / contr),
-                    weights=(rads * areas_u).value,
-                ).to(units.dimensionless_unscaled)
-                lum   = ((4 * pi * units.sr) * (rads * areas_u)).sum().to(units.solLum)
-                area  = (areas_p * areas_u).sum()
-                area_2= (np.where(
-                    np.isnan(taus),
-                    1.,
-                    np.where(
-                        taus > 0.636, #PHOTOSPHERE_TAU,
-                        1.0,
-                        0.0,
-                    )) * areas_u).sum()
-                #anses_fft = fft.fft2(rads.reshape(no_xy).value)
 
-                if is_verbose(verbose, 'info'):
-                    say('info', 'main()', verbose,
-                        f"lum = {lum}",
-                        f"area (from <1>) = ({area  /areas_u.sum()*100: 5.1f}%) {area}",
-                        f"area (from tau) = ({area_2/areas_u.sum()*100: 5.1f}%) {area_2}",
-                        f"size (from <1>) = {area**0.5}",
-                        f"size (from tau) = {area_2**0.5}",
-                        f"total possible area = {areas_u.sum()}",
-                        f"lower bound of the # of particles at photosphere, weighted avg over lum per pixels = {npt_at_ph_lb} ",
-                    )
-            
-                # save interm data
-                data = {}
-                data['lum'  ] = lum
-                data['area_one'] = area
-                data['area_tau'] = area_2
-                data['npt_at_ph_lb'] = npt_at_ph_lb
-                data['xyzs' ] = xyzs
-                data['time' ] = mpdf.get_time()
-                data['mpdf_params'] = mpdf.params
-                data['rays' ] = rays_u[:, 0, :2]
-                data['ray_unit_vec'] = get_ray_unit_vec(rays_u[0].value)
-                data['area_per_ray'] = areas_u[0] #areas_u
-                data['rads' ] = rads
-                data['contr'] = contr
-                
-                data['_meta_'] = {
-                    'npt_at_ph_lb': comb[job_nickname][xyzs]['_meta_']['npt_at_ph_lb'],
-                    'rays' : { 'Description': "Pixel centers on the 2D plane defined by xyzs.", },
-                    'rads' : { 'Description': "Specific intensity per pixel.", },
-                    'contr': { 'Description': "Maximum contributed particle's contribution towards the specific intensity, per pixel.", },
-                }
+            with mupl.hdf5_open(f"{interm_dir}{job_nickname}_{file_index:05d}.lcgen.{no_xy_txt}.hdf5", 'a', metadata) as out_interm_grp1:
+                #out_interm_grp1 = mupl.hdf5_subgroup(out_interm_file, f"{file_index:05d}", {})
 
+                for xyzs in xyzs_list:
+                    xyzs_names_list = [x for x in xyzs]
+        
+                    
+                    # record time used
+                    python_time_start = datetime.utcnow()
+                    print(f"Start: {python_time_start.isoformat()}")
+                    print(f"\tWorking on {job_nickname}_{file_index:05d}_{xyzs}...")
+        
+                    
+                    # get rays
+                    rays, areas, dXs = get_xy_grids_of_rays(
+                        sdf, no_xy=no_xy, frac_contained=100., use_adaptive_grid=False, xyzs_names_list=xyzs_names_list)
+                    pts    = np.array(sdf[xyzs_names_list])
+                    hs     = np.array(sdf[ 'h' ])    # npart-shaped array
+                    kernel = sdf.kernel
+                    kernel_rad = float(kernel.get_radius())
+                    col_kernel = kernel.get_column_kernel_func(samples=1000)
+                    
+                    rays_u = (rays * mpdf.units['dist']).to(units.au)
+                    areas_u = (areas * mpdf.units['dist']**2).to(units.au**2)
+        
+                    
+                    # do integration without error estimation
+                    ans   = integrate_along_ray_gridxy_ind(
+                        sdf, srcfuncs, rays, xyzs_names_list=xyzs_names_list, parallel=True, verbose=verbose)
+                    rads, areas_p, taus, inds, contr, pts_order_used = ans
+                    rads  = (rads * mpdf.units['sigma_sb'] * mpdf.units['temp']**4 / units.sr).cgs
+                    inds *= units.dimensionless_unscaled
+                    contr = 100 * contr * units.percent
+                    npt_at_ph_lb = np.average(
+                        np.where(np.isnan(contr), 0., 1. / contr),
+                        weights=(rads * areas_u).value,
+                    ).to(units.dimensionless_unscaled)
+                    lum   = ((4 * pi * units.sr) * (rads * areas_u)).sum().to(units.solLum)
+                    area  = (areas_p * areas_u).sum()
+                    area_2= (np.where(
+                        np.isnan(taus),
+                        1.,
+                        np.where(
+                            taus > 0.636, #PHOTOSPHERE_TAU,
+                            1.0,
+                            0.0,
+                        )) * areas_u).sum()
+                    #anses_fft = fft.fft2(rads.reshape(no_xy).value)
+    
+                    if is_verbose(verbose, 'info'):
+                        say('info', 'main()', verbose,
+                            f"lum = {lum}",
+                            f"area (from <1>) = ({area  /areas_u.sum()*100: 5.1f}%) {area}",
+                            f"area (from tau) = ({area_2/areas_u.sum()*100: 5.1f}%) {area_2}",
+                            f"size (from <1>) = {area**0.5}",
+                            f"size (from tau) = {area_2**0.5}",
+                            f"total possible area = {areas_u.sum()}",
+                            f"lower bound of the # of particles at photosphere, weighted avg over lum per pixels = {npt_at_ph_lb} ",
+                        )
                 
-                mupl.hdf5_dump(data, f"{interm_dir}{job_nickname}_{file_index:05d}.lcgen.{xyzs}.{no_xy_txt}.hdf5", metadata)
+                    # save interm data
+                    data = {}
+                    data['lum'  ] = lum
+                    data['area_one'] = area
+                    data['area_tau'] = area_2
+                    data['npt_at_ph_lb'] = npt_at_ph_lb
+                    data['xyzs' ] = xyzs
+                    data['time' ] = mpdf.get_time()
+                    data['mpdf_params'] = mpdf.params
+                    data['rays' ] = rays_u[:, 0, :2]
+                    data['ray_unit_vec'] = get_ray_unit_vec(rays_u[0].value)
+                    data['area_per_ray'] = areas_u[0] #areas_u
+                    data['rads' ] = rads
+                    data['contr'] = contr
+                    
+                    data['_meta_'] = {
+                        'npt_at_ph_lb': comb[job_nickname][xyzs]['_meta_']['npt_at_ph_lb'],
+                        'rays' : { 'Description': "Pixel centers on the 2D plane defined by xyzs.", },
+                        'rads' : { 'Description': "Specific intensity per pixel.", },
+                        'contr': {
+                            'Description': "Maximum contributed particle's contribution towards the specific intensity, per pixel.", },
+                    }
     
-                comb[job_nickname][xyzs]['times'][ifile] = data['time']
-                comb[job_nickname][xyzs]['lums' ][ifile] = data['lum' ]
-                comb[job_nickname][xyzs]['areas'][ifile] = data['area_one']
-                comb[job_nickname][xyzs]['npt_at_ph_lb'][ifile] = data['npt_at_ph_lb']
-    
-                
-                # plotting
-                if False:
-                    plt.close('all')
-                    fig, ax, outfilenames = plot_imshow(
-                        no_xy, rays_u, rads, data_label="$I$",
-                        xyzs=xyzs, save_label=f"I",
-                        job_profile=job_profile, file_index=file_index, notes=data,
-                        output_dir=output_dir, verbose=verbose_loop)
-                    fig, ax, outfilenames = plot_imshow(
-                        no_xy, rays_u, inds%20, data_label="index % 20 of the most contributed",
-                        xyzs=xyzs, save_label=f"dinds",
-                        job_profile=job_profile, file_index=file_index, cmap='turbo', notes=data,
-                        output_dir=output_dir, verbose=verbose_loop)
-                    fig, ax, outfilenames = plot_imshow(
-                        no_xy, rays_u, contr, data_label="contribution fraction of the most contributed",
-                        xyzs=xyzs, save_label=f"contr",
-                        job_profile=job_profile, file_index=file_index, cmap='seismic', notes=data,
-                        output_dir=output_dir, verbose=verbose_loop)
-                    #fig, ax, outfilenames = plot_imshow(
-                    #    no_xy, rays_u, np.abs(anses_fft), data_label="FFt of $I$", xyzs=xyzs, save_label=f"I-fft",
-                    #    norm=mpl.colors.LogNorm(),
-                    #    job_profile=job_profile, file_index=file_index, notes=data, output_dir=output_dir, verbose=verbose_loop)
-    
-    
-                # record time used
-                python_time_ended = datetime.utcnow()
-                python_time__used  = python_time_ended - python_time_start
-                print(f"Ended: {python_time_ended.isoformat()}\nTime Used: {python_time__used}\n")
+                    
+                    mupl.hdf5_dump(data, mupl.hdf5_subgroup(out_interm_grp1, xyzs, overwrite=True), {})
+        
+                    comb[job_nickname][xyzs]['times'][ifile] = data['time']
+                    comb[job_nickname][xyzs]['lums' ][ifile] = data['lum' ]
+                    comb[job_nickname][xyzs]['areas'][ifile] = data['area_one']
+                    comb[job_nickname][xyzs]['npt_at_ph_lb'][ifile] = data['npt_at_ph_lb']
+        
+                    
+                    # plotting
+                    if False:
+                        plt.close('all')
+                        fig, ax, outfilenames = plot_imshow(
+                            no_xy, rays_u, rads, data_label="$I$",
+                            xyzs=xyzs, save_label=f"I",
+                            job_profile=job_profile, file_index=file_index, notes=data,
+                            output_dir=output_dir, verbose=verbose_loop)
+                        fig, ax, outfilenames = plot_imshow(
+                            no_xy, rays_u, inds%20, data_label="index % 20 of the most contributed",
+                            xyzs=xyzs, save_label=f"dinds",
+                            job_profile=job_profile, file_index=file_index, cmap='turbo', notes=data,
+                            output_dir=output_dir, verbose=verbose_loop)
+                        fig, ax, outfilenames = plot_imshow(
+                            no_xy, rays_u, contr, data_label="contribution fraction of the most contributed",
+                            xyzs=xyzs, save_label=f"contr",
+                            job_profile=job_profile, file_index=file_index, cmap='seismic', notes=data,
+                            output_dir=output_dir, verbose=verbose_loop)
+                        #fig, ax, outfilenames = plot_imshow(
+                        #    no_xy, rays_u, np.abs(anses_fft), data_label="FFt of $I$", xyzs=xyzs, save_label=f"I-fft",
+                        #    norm=mpl.colors.LogNorm(),
+                        #    job_profile=job_profile, file_index=file_index, notes=data, output_dir=output_dir, verbose=verbose_loop)
+        
+        
+                    # record time used
+                    python_time_ended = datetime.utcnow()
+                    python_time__used  = python_time_ended - python_time_start
+                    print(f"Ended: {python_time_ended.isoformat()}\nTime Used: {python_time__used}\n")
 
         
         # save data for now
