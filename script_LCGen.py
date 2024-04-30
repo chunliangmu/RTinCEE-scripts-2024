@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[1]:
+# In[2]:
 
 
 """Scripts for analyzing of phantom outputs.
@@ -19,7 +19,7 @@ This script generate lightcurves (LC) by doing radiative transfer on a grid.
 
 # ## Imports & Settings
 
-# In[2]:
+# In[3]:
 
 
 import numpy as np
@@ -38,7 +38,7 @@ from datetime import datetime
 #from os import path
 
 
-# In[3]:
+# In[4]:
 
 
 # import my modules listed in ./main/
@@ -56,7 +56,7 @@ from multiprocessing import cpu_count, Pool #Process, Queue
 NPROCESSES = 1 if cpu_count() is None else max(cpu_count(), 1)
 
 
-# In[4]:
+# In[5]:
 
 
 # settings
@@ -87,7 +87,7 @@ if __name__ == '__main__' and is_verbose(verbose, 'note'):
     say('note', "script", verbose, f"Will use {NPROCESSES} processes for parallelization")
 
 
-# In[5]:
+# In[6]:
 
 
 from clmuphantomlib.log import say, is_verbose
@@ -113,7 +113,7 @@ from clmuphantomlib.geometry import get_dist2_from_pts_to_line, get_dist2_from_p
 
 # #### Backup codes
 
-# In[6]:
+# In[7]:
 
 
 def integrate_along_ray(
@@ -179,7 +179,7 @@ def integrate_along_ray(
             dat, dat_steps, dat_bwd_inc
 
 
-# In[7]:
+# In[8]:
 
 
 def integrate_error_along_ray(
@@ -229,7 +229,7 @@ def integrate_error_along_ray(
     return dat_errs, dat_bwd_inc_errs
 
 
-# In[8]:
+# In[9]:
 
 
 @jit(nopython=True, parallel=True)
@@ -242,7 +242,7 @@ def _integrate_along_ray_gridxy_sub_parallel_analysis_old_bkp(
     kernel_rad           : float,
     col_kernel           : numba.core.registry.CPUDispatcher,
     pts_order            : np.ndarray,    # (npart,  )-shaped
-    rel_tol              : float = 1e-15, # because float64 is only has only 16 digits accuracy
+    rel_tol              : float = 1e-16, # because float64 is only has only 16 digits accuracy
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
     """Sub process for integrate_along_ray_gridxy(). Numba parallel version (using prange).
 
@@ -332,7 +332,7 @@ def _integrate_along_ray_gridxy_sub_parallel_analysis_old_bkp(
 
 # #### Test codes
 
-# In[9]:
+# In[10]:
 
 
 # test runs
@@ -346,7 +346,7 @@ def _integrate_along_ray_gridxy_sub_parallel_analysis_test(
     kernel_rad           : float,
     col_kernel           : numba.core.registry.CPUDispatcher,
     pts_order            : npt.NDArray[np.float_],    # (npart,  )-shaped
-    rel_tol              : float = 1e-15, # because float64 is only has only 16 digits accuracy
+    rel_tol              : float = 1e-16, # because float64 is only has only 16 digits accuracy
 ) -> tuple[
     npt.NDArray[np.float_],    # anses
     npt.NDArray[np.float_],    # pones
@@ -484,7 +484,7 @@ _integrate_along_ray_gridxy_sub_parallel_analysis = _integrate_along_ray_gridxy_
 
 # #### stable code (mostly)
 
-# In[10]:
+# In[11]:
 
 
 @jit(nopython=True, parallel=True)
@@ -498,7 +498,7 @@ def _integrate_along_ray_gridxy_sub_parallel_err_ind(
     kernel_rad           : float,
     col_kernel           : numba.core.registry.CPUDispatcher,
     pts_order            : np.ndarray,    # (npart,  )-shaped
-    rel_tol              : float = 1e-15, # because float64 is only has only 16 digits accuracy
+    rel_tol              : float = 1e-16, # because float64 is only has only 16 digits accuracy
 ) -> tuple[np.ndarray, np.ndarray]:
     """Sub process for integrate_along_ray_gridxy(). Numba parallel version (using prange).
 
@@ -579,7 +579,7 @@ def _integrate_along_ray_gridxy_sub_parallel_err_ind(
 
 # #### integrate only, no error estiamtes (faster)
 
-# In[11]:
+# In[12]:
 
 
 # integrate only, no error estiamtes
@@ -704,7 +704,7 @@ def integrate_along_ray_gridxy_ind(
 
 # #### integrate with error estiamtes
 
-# In[12]:
+# In[13]:
 
 
 # integrate and integrate error
@@ -718,7 +718,7 @@ def integrate_along_ray_gridxy_err_ind(
     kernel  : sarracen.kernels.BaseKernel = None,
     parallel: bool = False,
     err_h   : float = 1.0,
-    rel_tol : float = 1e-15,
+    rel_tol : float = 1e-16,
     sdf_kdtree : kdtree.KDTree = None,
     xyzs_names_list : list = ['x', 'y', 'z'],
     verbose : int = 3,
@@ -855,7 +855,7 @@ def integrate_along_ray_gridxy_err_ind(
 
 # ### rays grid generation
 
-# In[13]:
+# In[14]:
 
 
 def get_xy_grids_of_rays(
@@ -866,6 +866,7 @@ def get_xy_grids_of_rays(
     frac_contained: float = 100., #99.73,
     use_adaptive_grid: bool = False,
     xyzs_names_list : list = ['x', 'y', 'z'],
+    w_rad: None|float = None,
     verbose: int = 3,
 ) -> tuple[np.ndarray, np.ndarray, list[np.ndarray]]:
     """Get a grid of rays (must pointing at z direction (i.e. xyzs_names_list[-1] direction) for now).
@@ -909,6 +910,8 @@ def get_xy_grids_of_rays(
     unit_vec[-1] = 1.
     #x0, y0, z0 = orig_vec
     z0 = 0.    # z value for rays
+    if w_rad is None:
+        w_rad = sdf.kernel.get_radius()
 
     # sanity checks
     if is_verbose(verbose, 'warn') and len(xyzs_names_list) != 3:
@@ -933,13 +936,13 @@ def get_xy_grids_of_rays(
             fracs = np.linspace(frac_contained_m, frac_contained_p, no_xy[i]+1)
             # edge points for the grid
             Xs_edges.append(
-                np.percentile(np.concatenate((sdf[label] - sdf['h'], sdf[label] + sdf['h'])), fracs))
+                np.percentile(np.concatenate((sdf[label] - w_rad*sdf['h'], sdf[label] + w_rad*sdf['h'])), fracs))
         else:
             Xs_edges.append(
                 np.linspace(
                     *np.percentile(
                         np.concatenate(
-                            (sdf[label] - sdf['h'], sdf[label] + sdf['h']),
+                            (sdf[label] - w_rad*sdf['h'], sdf[label] + w_rad*sdf['h']),
                         ), (frac_contained_m, frac_contained_p),
                     ), no_xy[i]+1,
                 )
@@ -960,7 +963,7 @@ def get_xy_grids_of_rays(
 
 # ### Plotting
 
-# In[14]:
+# In[15]:
 
 
 def plot_imshow(
@@ -1051,7 +1054,7 @@ def plot_imshow(
 
 # ### Error estimation
 
-# In[15]:
+# In[16]:
 
 
 def get_sph_neighbours(
@@ -1086,7 +1089,7 @@ def get_sph_neighbours(
     return dists[indices_indices], indices[indices_indices]
 
 
-# In[16]:
+# In[17]:
 
 
 # sph error estimation
@@ -1206,7 +1209,7 @@ def get_sph_error(
 # .
 # 
 
-# In[17]:
+# In[18]:
 
 
 if __name__ == '__main__':
@@ -1408,4 +1411,10 @@ if __name__ == '__main__':
     
     plt.close('all')
     mupl.hdf5_dump(comb, f"{interm_dir}lcgen.{no_xy_txt}.hdf5", metadata)
+
+
+# In[ ]:
+
+
+
 
