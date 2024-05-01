@@ -6,7 +6,7 @@ Input Parameters for my scripts.
 from _photosphere_jobProfiles__input import interm_dir, output_dir, unitsOut, PHOTOSPHERE_TAU, JOB_PROFILES_DICT #, fps
 
 
-verbose = 5
+verbose = 6
 
 job_nicknames = ['2md', '4md']#, '4m', '2m_2022']
 xyzs_list  = ['xyz', 'xzy']
