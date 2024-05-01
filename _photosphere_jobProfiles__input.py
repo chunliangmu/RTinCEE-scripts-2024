@@ -18,7 +18,7 @@ output_dir = '../fig/'
 out_dir    = output_dir  # deprecated keyword
 
 
-fps = 10
+fps = 6
 
 unitsOut = {
     'dist': units.au,
