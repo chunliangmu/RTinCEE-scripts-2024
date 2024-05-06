@@ -39,7 +39,7 @@ JOB_PROFILES_LIST = (
         'file_prefix': 'light',
         #'job_name': '../photosphere/luis_2md/light', # deprecated keyword- will still be added automatically later
         'file_indexes': np.arange(0, 17600+1, 100),
-        'plot_title_suffix': f" for 1.7{Msun_str} primary star with Nucleation Dust",
+        'plot_title_suffix': f" for 1.7{Msun_str} primary with Dust",
         'ieos': 10,
         'params': {
             'X' : 0.691,
@@ -56,7 +56,7 @@ JOB_PROFILES_LIST = (
         'file_prefix': 'light',
         #'job_name': '../photosphere/luis_4md/light',
         'file_indexes': np.arange(0, 17600+1, 100),
-        'plot_title_suffix': f" for 3.7{Msun_str} primary star with Nucleation Dust",
+        'plot_title_suffix': f" for 3.7{Msun_str} primary with Dust",
         'ieos': 10,
         'params': {
             'X' : 0.686,
@@ -73,7 +73,7 @@ JOB_PROFILES_LIST = (
         'file_prefix': 'binary',
         #'job_name': '../photosphere/miguel_2m/binary',
         'file_indexes': np.arange(0, 5000+1, 100),
-        'plot_title_suffix': f" for 1.7{Msun_str} primary star without Dust",
+        'plot_title_suffix': f" for 1.7{Msun_str} primary without Dust",
         'ieos': 10,
         'params': {
             'X' : 0.691,
@@ -90,7 +90,7 @@ JOB_PROFILES_LIST = (
         'file_prefix': 'binary',
         #'job_name': '../photosphere/miguel_4m/binary',
         'file_indexes': np.arange(0, 5000+1, 100),
-        'plot_title_suffix': f" for 3.7{Msun_str} primary star without Dust",
+        'plot_title_suffix': f" for 3.7{Msun_str} primary without Dust",
         'ieos': 10,
         'params': {
             'X' : 0.686,
@@ -107,7 +107,7 @@ JOB_PROFILES_LIST = (
         'file_prefix': 'binary',
         #'job_name': '../photosphere/miguel_2m_2022/binary',
         'file_indexes': np.arange(0, 6000+1, 100),
-        'plot_title_suffix': f" for 1.7{Msun_str} primary star without Dust",
+        'plot_title_suffix': f" for 1.7{Msun_str} primary without Dust",
         'ieos': 10,
         'params': {
             'X' : 0.691,
