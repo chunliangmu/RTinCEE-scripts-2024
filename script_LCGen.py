@@ -970,13 +970,14 @@ def plot_imshow(
     no_xy: tuple[int, int],
     rays: units.Quantity|np.ndarray,
     data: units.Quantity|np.ndarray,
-    job_profile : dict= None,
-    file_index  : int = -1,
-    title_suffix: str ="",
-    notes       : dict= None,
-    data_label  : str ="",
-    save_label  : str ="",
-    xyzs:str|list = 'xyz',
+    job_profile  : dict= None,
+    file_index   : int = -1,
+    title_suffix : str ="",
+    notes        : dict= None,
+    data_label   : str ="",
+    save_label   : str ="",
+    xyzs         : str|list[str] = 'xyz',
+    out_exts     : list[str] = ['pdf', 'png'],
     norm=None,
     cmap=None,
     output_dir:str|None=None,
@@ -1030,19 +1031,16 @@ def plot_imshow(
     outfilenames = []
 
     # write pdf
-    outfilename = f"{outfilename_noext}.pdf"
-    fig.savefig(outfilename)
-    outfilenames.append(outfilename)
-    if is_verbose(verbose, 'note'):
-        say('note', None, verbose, f"Fig saved to {outfilename}.")
-
-    # write png (with plot title)
-    ax.set_title(f"Heatmap of {data_label}\n{job_profile['plot_title_suffix']}")
-    outfilename = f"{outfilename_noext}.png"
-    fig.savefig(outfilename)
-    outfilenames.append(outfilename)
-    if is_verbose(verbose, 'note'):
-        say('note', None, verbose, f"Fig saved to {outfilename}.")
+    for out_ext in out_exts:
+        outfilename = f"{outfilename_noext}.{out_ext}"
+        if out_ext == 'pdf':
+            ax.set_title('')
+        else:
+            ax.set_title(f"Heatmap of {data_label}\n{job_profile['plot_title_suffix']}")
+        fig.savefig(outfilename)
+        outfilenames.append(outfilename)
+        if is_verbose(verbose, 'note'):
+            say('note', None, verbose, f"Fig saved to {outfilename}.")
         
     return fig, ax, outfilenames
 
@@ -1254,7 +1252,7 @@ if __name__ == '__main__':
             srcfuncs = mpdf.const['sigma_sb'] * sdf['T']**4 / pi
             sdf['srcfunc'] = srcfuncs
 
-            with mupl.hdf5_open(f"{interm_dir}{job_nickname}_{file_index:05d}.lcgen.{no_xy_txt}.hdf5", 'a', metadata) as out_interm_grp1:
+            with mupl.hdf5_open(f"{interm_dir}{job_nickname}_{file_index:05d}.lcgen.{no_xy_txt}.hdf5.gz", 'a', metadata) as out_interm_grp1:
                 #out_interm_grp1 = mupl.hdf5_subgroup(out_interm_file, f"{file_index:05d}", {})
 
                 for xyzs in xyzs_list:
@@ -1410,7 +1408,7 @@ if __name__ == '__main__':
                 
     
     plt.close('all')
-    mupl.hdf5_dump(comb, f"{interm_dir}lcgen.{no_xy_txt}.hdf5", metadata)
+    mupl.hdf5_dump(comb, f"{interm_dir}lcgen.{no_xy_txt}.hdf5.gz", metadata)
 
 
 # In[ ]:
