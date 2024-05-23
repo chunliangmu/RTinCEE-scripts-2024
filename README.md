@@ -25,6 +25,9 @@ Associate Supervisor: Professor Mark Wardle
 
 You will need to put my `clmuphantomlib` in the directory where the symbolic link is pointing to.
 (See github link at the bottom of this page.)
+My set up for this is to put this repository's files in folder `[PATH]/scripts/`,
+and put the `clmuphantomlib` repository's files in folder `[PATH]/src/`.
+
 
 
 
