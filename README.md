@@ -14,6 +14,9 @@ These scripts are written by me for my PhD project:
 
 Project20230125: **Radiative Transfer (RT) in Common Envelope Evolution (CEE)**
 
+(Official provisional project name:
+"Non-adiabatic Common Envelope Simulation of Massive Stars")
+
 
 Creator: ***Chunliang Mu*** (PhD student at Macquarie University 2023-2026(expected))
 
