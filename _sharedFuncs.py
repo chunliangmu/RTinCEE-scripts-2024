@@ -9,16 +9,17 @@ Shared helper functions
 import numpy as np
 from astropy import units
 from clmuphantomlib.log import is_verbose, say
-from clmuphantomlib import MyPhantomDataFrames, get_eos
-from clmuphantomlib.eos_mesa   import EoS_MESA_opacity
+from clmuphantomlib import MyPhantomDataFrames, get_eos, get_eos_opacity
+from clmuphantomlib.eos   import EoS_MESA_opacity
 from clmuphantomlib.units_util import get_val_in_unit
 
 
 def mpdf_read(
     job_name: str,
     file_index: int,
-    eos_opacity: EoS_MESA_opacity,
-    mpdf: MyPhantomDataFrames|None = None,
+    eos_opacity: None|EoS_MESA_opacity = None,
+    mpdf: None|MyPhantomDataFrames = None,
+    params    : dict = None,
     reset_xyz_by: str='CoM',
     kappa_gas : units.Quantity = 2e-4*(units.cm**2/units.g),
     kappa_tol : units.Quantity = 1e-7*(units.cm**2/units.g),
@@ -30,11 +31,17 @@ def mpdf_read(
     
     using a blend of mesa opacity (for high T) and stored kappa value in the dump (for low T; in my project, this col is nucleation dust opacity).
     If no kappa is found, will use default 2e-4 cm2/g for the low T part instead. You can disable this by setting T_cond_oxy to 0K.
+
+    Supply either eos_opacity or params.
     """
     if mpdf is None:
         mpdf = MyPhantomDataFrames()
 
     mpdf.read(job_name, file_index, reset_xyz_by=reset_xyz_by, calc_params=['vr'], verbose=verbose)
+
+    if eos_opacity is None:
+        eos_opacity = get_eos_opacity(ieos=mpdf.ieos, params=params)
+    
     temp_key = {'T', 'temperature', 'Tdust'}.intersection(mpdf.data['gas'].keys()).pop()
     mpdf.data['gas']['T'    ] = mpdf.data['gas'][temp_key]
     if 'kappa' in mpdf.data['gas'].keys():
