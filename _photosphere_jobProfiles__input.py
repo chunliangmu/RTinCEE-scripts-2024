@@ -28,6 +28,8 @@ unitsOut = {
     'opacity': units.cm**2 / units.g,
     'dimless': units.dimensionless_unscaled,
     'speed': units.km/units.s,
+    'flux' : units.erg / units.cm**2 / units.s,
+    'S_kappa_rho': units.erg / units.cm**3 / units.s,
 }
 
 
