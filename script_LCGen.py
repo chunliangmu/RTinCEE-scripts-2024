@@ -1,12 +1,21 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[2]:
+# In[1]:
 
 
 """Scripts for analyzing of phantom outputs.
 
 This script generate lightcurves (LC) by doing radiative transfer on a grid.
+
+
+-------------------------------------------------------------------------------
+
+Side note: Remember to limit line length to 79 characters according to PEP-8
+    https://peps.python.org/pep-0008/#maximum-line-length    
+which is the length of below line of '-' characters.
+
+-------------------------------------------------------------------------------
 
 """
 
@@ -19,7 +28,7 @@ This script generate lightcurves (LC) by doing radiative transfer on a grid.
 
 # ## Imports & Settings
 
-# In[3]:
+# In[2]:
 
 
 import numpy as np
@@ -38,7 +47,7 @@ from datetime import datetime
 #from os import path
 
 
-# In[4]:
+# In[3]:
 
 
 # import my modules listed in ./main/
@@ -46,17 +55,17 @@ from datetime import datetime
 import clmuphantomlib as mupl
 from clmuphantomlib            import MyPhantomDataFrames, get_eos
 from clmuphantomlib.log        import is_verbose, say
-from clmuphantomlib.settings   import DEFAULT_SETTINGS as settings
+#from clmuphantomlib.settings   import DEFAULT_SETTINGS as settings
 from clmuphantomlib.units_util import get_val_in_unit, set_as_quantity #, get_units_field_name, get_units_cgs
-from clmuphantomlib.readwrite  import json_dump, json_load
-from clmuphantomlib.eos_mesa   import EoS_MESA_opacity
+from clmuphantomlib.io         import json_dump, json_load
+from clmuphantomlib.eos        import get_eos_opacity
 from clmuphantomlib.light      import get_optical_depth_by_ray_tracing_3D, get_photosphere_on_ray
 
 from multiprocessing import cpu_count, Pool #Process, Queue
 NPROCESSES = 1 if cpu_count() is None else max(cpu_count(), 1)
 
 
-# In[5]:
+# In[4]:
 
 
 # settings
@@ -87,14 +96,14 @@ if __name__ == '__main__' and is_verbose(verbose, 'note'):
     say('note', "script", verbose, f"Will use {NPROCESSES} processes for parallelization")
 
 
-# In[6]:
+# In[5]:
 
 
 from clmuphantomlib.log import say, is_verbose
 from clmuphantomlib.geometry import get_dist2_between_2pt, get_closest_pt_on_line
-from clmuphantomlib.sph_interp import get_sph_interp, get_h_from_rho, get_no_neigh, _get_sph_interp_phantom_np
+from clmuphantomlib.sph_interp import get_sph_interp, get_sph_gradient, get_h_from_rho, get_no_neigh, _get_sph_interp_phantom_np
 from clmuphantomlib.units_util import set_as_quantity, set_as_quantity_temperature, get_units_field_name
-from clmuphantomlib.eos_base import EoS_Base
+from clmuphantomlib.eos import EoS_Base
 from clmuphantomlib.light import integrate_along_ray_grid, integrate_along_ray_gridxy
 
 #  import (general)
@@ -113,7 +122,7 @@ from clmuphantomlib.geometry import get_dist2_from_pts_to_line, get_dist2_from_p
 
 # #### Backup codes
 
-# In[7]:
+# In[6]:
 
 
 def integrate_along_ray(
@@ -179,7 +188,7 @@ def integrate_along_ray(
             dat, dat_steps, dat_bwd_inc
 
 
-# In[8]:
+# In[7]:
 
 
 def integrate_error_along_ray(
@@ -229,7 +238,7 @@ def integrate_error_along_ray(
     return dat_errs, dat_bwd_inc_errs
 
 
-# In[9]:
+# In[8]:
 
 
 @jit(nopython=True, parallel=True)
@@ -330,30 +339,28 @@ def _integrate_along_ray_gridxy_sub_parallel_analysis_old_bkp(
     return anses, indes, contr, jused
 
 
-# #### Test codes
-
-# In[10]:
+# In[9]:
 
 
-# test runs
+# test runs - Backup
 @jit(nopython=True, parallel=True)
 def _integrate_along_ray_gridxy_sub_parallel_analysis_test(
-    pts_ordered          : npt.NDArray[np.float_],    # (npart, 3)-shaped
-    hs_ordered           : npt.NDArray[np.float_],    # (npart,  )-shaped
-    mkappa_div_h2_ordered: npt.NDArray[np.float_],    # (npart,  )-shaped
-    srcfuncs_ordered     : npt.NDArray[np.float_],    # (npart,  )-shaped
-    rays                 : npt.NDArray[np.float_],    # (nray, 2, 3)-shaped
+    pts_ordered          : npt.NDArray[np.float64],    # (npart, 3)-shaped
+    hs_ordered           : npt.NDArray[np.float64],    # (npart,  )-shaped
+    mkappa_div_h2_ordered: npt.NDArray[np.float64],    # (npart,  )-shaped
+    srcfuncs_ordered     : npt.NDArray[np.float64],    # (npart,  )-shaped
+    rays                 : npt.NDArray[np.float64],    # (nray, 2, 3)-shaped
     kernel_rad           : float,
     col_kernel           : numba.core.registry.CPUDispatcher,
-    pts_order            : npt.NDArray[np.float_],    # (npart,  )-shaped
+    pts_order            : npt.NDArray[np.float64],    # (npart,  )-shaped
     rel_tol              : float = 1e-16, # because float64 is only has only 16 digits accuracy
 ) -> tuple[
-    npt.NDArray[np.float_],    # anses
-    npt.NDArray[np.float_],    # pones
-    npt.NDArray[np.float_],    # ptaus
-    npt.NDArray[np.int64 ],    # indes
-    npt.NDArray[np.float_],    # contr
-    npt.NDArray[np.bool_ ],    # jused
+    npt.NDArray[np.float64],    # anses
+    npt.NDArray[np.float64],    # pones
+    npt.NDArray[np.float64],    # ptaus
+    npt.NDArray[np.int64  ],    # indes
+    npt.NDArray[np.float64],    # contr
+    npt.NDArray[np.bool_  ],    # jused
 ]:
     """Sub process for integrate_along_ray_gridxy(). Numba parallel version (using prange).
 
@@ -482,9 +489,7 @@ def _integrate_along_ray_gridxy_sub_parallel_analysis_test(
 _integrate_along_ray_gridxy_sub_parallel_analysis = _integrate_along_ray_gridxy_sub_parallel_analysis_test
 
 
-# #### stable code (mostly)
-
-# In[11]:
+# In[10]:
 
 
 @jit(nopython=True, parallel=True)
@@ -577,9 +582,7 @@ def _integrate_along_ray_gridxy_sub_parallel_err_ind(
     return anses, erres
 
 
-# #### integrate only, no error estiamtes (faster)
-
-# In[12]:
+# In[11]:
 
 
 # integrate only, no error estiamtes
@@ -684,7 +687,6 @@ def integrate_along_ray_gridxy_ind(
 
     # get used particles indexes
     if parallel:
-        #anses, indes, contr, jused = _integrate_along_ray_gridxy_sub_parallel_analysis(
         anses, areas, ptaus, indes, contr, jused = _integrate_along_ray_gridxy_sub_parallel_analysis(
             pts_ordered, hs_ordered, mkappa_div_h2_ordered, srcfuncs_ordered, rays, kernel_rad, col_kernel, pts_order, rel_tol=rel_tol)
     else:
@@ -702,9 +704,7 @@ def integrate_along_ray_gridxy_ind(
     return anses, areas, ptaus, indes, contr, pts_order_used
 
 
-# #### integrate with error estiamtes
-
-# In[13]:
+# In[12]:
 
 
 # integrate and integrate error
@@ -813,7 +813,6 @@ def integrate_along_ray_gridxy_err_ind(
 
     # get used particles indexes
     if parallel:
-        #anses, indes, contr, jused = _integrate_along_ray_gridxy_sub_parallel_analysis(
         anses, areas, ptaus, indes, contr, jused = _integrate_along_ray_gridxy_sub_parallel_analysis(
             pts_ordered, hs_ordered, mkappa_div_h2_ordered, srcfuncs_ordered, rays, kernel_rad, col_kernel, pts_order, rel_tol=rel_tol)
     else:
@@ -853,9 +852,344 @@ def integrate_along_ray_gridxy_err_ind(
 #integrate_along_ray_gridxy_ind = integrate_along_ray_gridxy_err_ind
 
 
-# ### rays grid generation
+# #### Test codes
+
+# In[13]:
+
+
+# test runs
+@jit(nopython=True, parallel=True)
+def _integrate_along_ray_gridxy_sub_parallel(
+    pts_ordered          : npt.NDArray[np.float64],    # (npart, 3)-shaped
+    hs_ordered           : npt.NDArray[np.float64],    # (npart,  )-shaped
+    mkappa_div_h2_ordered: npt.NDArray[np.float64],    # (npart,  )-shaped
+    srcfuncs_ordered     : npt.NDArray[np.float64],    # (npart,  )-shaped
+    rays                 : npt.NDArray[np.float64],    # (nray, 2, 3)-shaped
+    ray_areas            : npt.NDArray[np.float64],    # (nray,     )-shaped
+    kernel_rad           : float,
+    col_kernel           : numba.core.registry.CPUDispatcher,
+    pts_order            : npt.NDArray[np.float64],    # (npart,  )-shaped
+    rel_tol              : float = 1e-16, # because float64 is only has only 16 digits accuracy
+) -> tuple[
+    npt.NDArray[np.float64],    # anses
+    npt.NDArray[np.float64],    # pones
+    npt.NDArray[np.float64],    # ptaus
+    npt.NDArray[np.int64  ],    # indes
+    npt.NDArray[np.float64],    # contr
+    npt.NDArray[np.float64],    # jfact
+]:
+    """Sub process for integrate_along_ray_gridxy(). Numba parallel version (using prange).
+
+    Unit vec must be [0., 0., 1.] (i.e. all rays must point upwards towards +z).
+
+    Private function. Assumes specific input type. See source code comments.
+
+    Returns
+    -------
+    anses, pones, ptaus, indes, contr, jfact
+    
+    anses: (nray,)-shaped np.ndarray[float]
+        Radiance (i.e. specific intensities) for each ray.
+
+    pones: (nray,)-shaped np.ndarray[float]
+        <1> for each pixel,
+        i.e. same integration of radiance but for a constant 'srcfunc' of '1', for each ray.
+        Helpful for consistency check (should be more or less 1 where ptaus is nan.)
+        do weighted average by weight of areas per pixel to get the total area of the object!
+
+    ptaus: (nray,)-shaped np.ndarray[float]
+        The optical depth for each pixel
+        *** WILL BE np.nan IF OPTICAL DEPTH IS DEEP (which will be MOST OF THE TIME.)  ***
+        can be used as an alternative way to calculate the area of the object.
+
+    indes: (nray,)-shaped np.ndarray[int]
+        indexes of the max contribution particle
+
+    contr: (nray,)-shaped np.ndarray[float]
+        relative contribution (in fractions) of the max contribution particle
+
+    jfact: (npart,)-shaped np.ndarray[float]
+        Contribution factor for j-th particle.
+        Multiply it with 4 * pi * srcfuncs and sum it up as an alternative way to get the luminosity.
+        Will be zero if particle is not used.
+        
+
+    """
+    #raise NotImplementedError
+
+    nray  = len(rays)
+    npart = len(srcfuncs_ordered)
+    ndim  = pts_ordered.shape[-1]
+    anses = np.zeros(nray)
+    indes = np.zeros(nray, dtype=np.int64)    # indexes of max contribution particle
+    contr = np.zeros(nray)    # relative contribution of the max contribution particle
+    jfact = np.zeros(npart)    # is j-th particle in the ordered list used for this calculation?
+    pones = np.zeros(nray)
+    ptaus = np.full(nray, np.nan)    # lower bound of the optical depth
+    
+
+    # error tolerance of tau (part 1)
+    tol_tau_base = np.log(srcfuncs_ordered.sum()) - np.log(rel_tol)
+
+    # hr = h * kernel_rad
+    hrs_ordered = hs_ordered * kernel_rad
+
+    # loop over ray
+    for i in prange(nray):
+        ray = rays[i]
+        ray_area = ray_areas[i]
+        tau = 0.
+        ans = 0.
+        dans= 0.
+        dans_max_tmp = 0.
+        ind = -1
+        fac = 0. # effectively <1>
+        dfac= 0. # factor
+
+        #   xy-grid specific solution
+        ray_x = ray[0, 0]
+        ray_y = ray[0, 1]
+        
+        # loop over particles
+        #for pt, hr, mkappa_div_h2, srcfunc in zip(
+        #    pts_ordered, hrs_ordered, mkappa_div_h2_ordered, srcfuncs_ordered):
+        for j in range(npart):
+            pt = pts_ordered[j]
+            hr = hrs_ordered[j]
+            
+            # check if the particle is within range
+            #   general solution
+            #q = get_dist2_from_pt_to_line_nb(pt, ray)**0.5 / h
+            #if q < kernel_rad:
+            #   xy-grid specific solution
+            if ray_x - hr < pt[0] and pt[0] < ray_x + hr and ray_y - hr < pt[1] and pt[1] < ray_y + hr:
+                h = hs_ordered[ j]
+                q = ((pt[0] - ray_x)**2 + (pt[1] - ray_y)**2)**0.5 / h
+                if q < kernel_rad:
+
+                    #jfact[j] = True
+                    
+                    # now do radiative transfer
+                    
+                    mkappa_div_h2 = mkappa_div_h2_ordered[j]
+                    srcfunc = srcfuncs_ordered[j]
+                    
+                    dtau = mkappa_div_h2 * col_kernel(q, ndim-1)
+                    dfac = np.exp(-tau) * (1. - np.exp(-dtau))
+                    dans = dfac * srcfunc
+                    ans += dans
+                    fac += dfac
+                    tau += dtau
+
+                    jfact[j] += dfac * ray_area
+
+                    # note down the largest contributor
+                    if dans > dans_max_tmp:
+                        dans_max_tmp = dans
+                        ind = pts_order[j]
+    
+                    # terminate the calc for this ray if tau is sufficient large
+                    #    such that the relative error on ans is smaller than rel_tol
+                    # i.e. since when tau > np.log(srcfuncs_ordered.sum()) - np.log(rel_tol) - np.log(ans),
+                    #    we know that ans[i] - ans[i][k] < rel_tol * ans[i]
+                    # see my notes for derivation
+                    if tau > tol_tau_base - np.log(ans):
+                        break
+
+        else:
+            ptaus[i]=tau
+            
+        anses[i] = ans
+        indes[i] = ind
+        contr[i] = dans_max_tmp / ans
+        pones[i] = fac
+    
+    return anses, pones, ptaus, indes, contr, jfact
+
+
+
 
 # In[14]:
+
+
+# integrate with error estiamtes
+
+def integrate_along_ray_gridxy(
+    sdf         : sarracen.SarracenDataFrame,
+    srcfuncs    : npt.NDArray[np.float64],    # (npart,  )-shaped
+    srcfuncs_err: None|npt.NDArray[np.float64],    # (npart,  )-shaped
+    rays        : npt.NDArray[np.float64],    # (nray, 2, 3)-shaped
+    ray_areas   : npt.NDArray[np.float64],    # (nray,     )-shaped
+    ray_unit_vec: None|npt.NDArray[np.float64] = None,    # (nray, 3)-shaped
+    kernel      : None|sarracen.kernels.BaseKernel = None,
+    hfact       : None|float = None,
+    parallel    : bool = False,
+    err_h       : float = 1.0,
+    rel_tol     : float = 1e-16,
+    sdf_kdtree  : None|kdtree.KDTree = None,
+    xyzs_names_list : list = ['x', 'y', 'z'],
+    verbose     : int = 3,
+) -> tuple[
+    float,    # lum
+    float,    # lum_err
+    npt.NDArray[np.float64],    # rads
+    npt.NDArray[np.float64],    # pones
+    npt.NDArray[np.float64],    # ptaus
+    npt.NDArray[np.float64],    # indes
+    npt.NDArray[np.float64],    # contr
+    tuple[npt.NDArray[np.int64],],    # jused - 'j' for j-th particle;
+    # 'used' means the (indices of) particles (in the ordered list) that actually participated in the calculation
+    npt.NDArray[np.float64],    # jfact_used
+]:
+    """Backward integration of source functions along a grided ray (traced backwards), weighted by optical depth.
+    
+    Assuming all rays facing +z direction. (with the same ray_unit_vec [0., 0., 1.])
+
+    WARNING: will overwrite sdf['srcfunc'] if srcfuncs_err is None.
+    
+    
+    Parameters
+    ----------
+    sdf: sarracen.SarracenDataFrame
+        Must contain columns: x, y, z, h, m, kappa
+        
+    rays: (nray, 2, 3)-shaped array
+        Representing the ray trajectory. Currently only straight infinite lines are supported.
+        each ray is of the format:
+        [[begin point], [end point]]
+        where the end point is closer to the observer.
+
+    srcfuncs: 1D array
+        arrays describing the source function for every particle
+        
+    kernel: sarracen.kernels.base_kernel
+        Smoothing kernel for SPH data interpolation.
+        If None, will use the one in sdf.
+
+    hfact : None|float
+
+    parallel: bool
+        If to use the numba parallel function
+
+    err_h: float ( > 0. )
+        determine confidence level.
+        e.g.,
+            1.0 will give error assuming error range is +/-1.0 smoothing length h;
+            0.5 will give error assuming error range is +/-0.5 smoothing length h;
+            etc. etc.
+            
+    rel_tol : float
+        maximum relative error tolerence per ray.
+        Default 1e-15 because float64 is only accurate to ~16th digits.
+
+    sdf_kdtree : kdtree.KDTree
+        KDTree built from sdf[['x', 'y', 'z']], for fast neighbour search.
+        if None, will build one.
+        
+    xyzs_names_list: list
+        list of names of the columns that represents x, y, z axes (i.e. coord axes names)
+        MUST INCLUDE ALL THREE AXES LABELS.
+        If only 2 is included, WILL ASSUME IT IS 2D CACULATIONS.
+    
+    Returns
+    -------
+    lum, lum_err, rads, pones, ptaus, indes, contr, jused, jfact_used
+    
+    rads: np.ndarray
+        Radiance (i.e. specific intensities) for each ray.
+    
+    """
+
+
+    # init
+    npart : int = len(sdf)
+    nray  : int = len(rays)
+    if kernel is None: kernel = sdf.kernel
+    kernel_rad = float(kernel.get_radius())
+    col_kernel = kernel.get_column_kernel_func(samples=1000) # w integrated from z
+    if ray_unit_vec is None: ray_unit_vec = get_ray_unit_vec(rays[0])
+    
+    pts    = np.array(sdf[xyzs_names_list], order='C')    # (npart, 3)-shaped array (must be this shape for pts_order sorting below)
+    hs     = np.array(sdf[ 'h'           ], order='C')    # npart-shaped array
+    masses = np.array(sdf[ 'm'           ], order='C')
+    kappas = np.array(sdf[ 'kappa'       ], order='C')
+    srcfuncs = np.array(srcfuncs          , order='C')
+    ndim   = pts.shape[-1]
+    mkappa_div_h2_arr = masses * kappas / hs**(ndim-1)
+    
+    # sanity check
+    if is_verbose(verbose, 'err') and not np.allclose(ray_unit_vec, get_rays_unit_vec(rays)):
+        raise ValueError(f"Inconsistent ray_unit_vec {ray_unit_vec} with the rays.")
+
+    if is_verbose(verbose, 'warn') and ndim != 3:
+        say('warn', None, verbose, f"ndim == {ndim} is not 3.")
+
+    # (npart-shaped array of the indices of the particles from closest to the observer to the furthest)
+    pts_order             = np.argsort( np.sum(pts * ray_unit_vec, axis=-1) )[::-1]
+    pts_ordered           = pts[     pts_order]
+    hs_ordered            = hs[      pts_order]
+    mkappa_div_h2_ordered = mkappa_div_h2_arr[pts_order]
+    srcfuncs_ordered      = srcfuncs[pts_order]
+
+    # get used particles indexes
+    if parallel:
+        rads, pones, ptaus, indes, contr, jfact = _integrate_along_ray_gridxy_sub_parallel(
+            pts_ordered, hs_ordered, mkappa_div_h2_ordered, srcfuncs_ordered,
+            rays, ray_areas, kernel_rad, col_kernel, pts_order, rel_tol=rel_tol)
+    else:
+        raise NotImplementedError("parallel=False version of this function not yet implemented.")
+
+    jused = np.where(jfact)
+    jfact_used = jfact[jused]
+    pts_order_used = pts_order[jused]
+    
+    lum  = 4 * pi * (rads * ray_areas).sum()
+    lum2 = 4 * pi * (srcfuncs_ordered[jused] * jfact_used).sum()
+    say('debug', None, verbose,
+        f"{lum = }, {lum2 = }",
+        f"{rads.shape=}, {ray_areas.shape=}",
+        f"{srcfuncs[jused].shape=}, {jfact_used.shape=}",
+    )
+    #assert np.isclose(lum, lum2)
+
+    if srcfuncs_err is None:
+        # calc error of source function now
+        sdf['srcfunc'] = srcfuncs
+        srcfuncs_grad_used = get_sph_gradient(
+            sdf,
+            val_names   ='srcfunc',
+            locs        = pts_ordered[     jused],
+            vals_at_locs= srcfuncs_ordered[jused],
+            hs_at_locs  = hs_ordered[      jused],
+            kernel      = kernel,
+            hfact       = hfact,
+            sdf_kdtree  = sdf_kdtree,
+            ndim        = ndim,
+            xyzs_names_list=xyzs_names_list,
+            parallel    = parallel,
+            verbose     = verbose,
+        )[:, :, 0]    # get_sph_gradient returns a (nlocs, ndim, nvals)-shaped np.ndarray
+        srcfuncs_err_used = np.sum(srcfuncs_grad_used**2, axis=1)**0.5 * hs_ordered[jused] * err_h
+    else:
+        srcfuncs_err_used = srcfuncs_err[pts_order_used]
+
+    lum_err = 4 * pi * ((srcfuncs_err_used * jfact_used)**2).sum()**0.5
+    
+
+    if is_verbose(verbose, 'info'):
+        nused = len(jfact_used)
+        say('info', None, verbose,
+            f"{nused} particles actually participated calculation",
+            f"({int(nused/npart*10000)/100.}% of all particles,",
+            f"average {int(nused/nray*100)/100.} per ray.)", sep=' ')
+
+    
+    return lum, lum_err, rads, pones, ptaus, indes, contr, pts_order_used, jfact_used
+
+
+# ### rays grid generation
+
+# In[15]:
 
 
 def get_xy_grids_of_rays(
@@ -963,7 +1297,7 @@ def get_xy_grids_of_rays(
 
 # ### Plotting
 
-# In[15]:
+# In[16]:
 
 
 def plot_imshow(
@@ -1052,7 +1386,7 @@ def plot_imshow(
 
 # ### Error estimation
 
-# In[16]:
+# In[17]:
 
 
 def get_sph_neighbours(
@@ -1087,7 +1421,7 @@ def get_sph_neighbours(
     return dists[indices_indices], indices[indices_indices]
 
 
-# In[17]:
+# In[18]:
 
 
 # sph error estimation
@@ -1202,15 +1536,29 @@ def get_sph_error(
 
 # .
 # 
-# ## Main
+# ## Debug
 # 
 # .
-# 
 
-# In[18]:
+# In[19]:
 
 
-if __name__ == '__main__':
+# debug
+
+
+do_debug = False
+
+
+# In[20]:
+
+
+if do_debug and __name__ == '__main__':
+
+    
+    job_nicknames = ['2md', ]
+    FILE_INDEXES  = [ 4800, ]
+    xyzs_list     = ['xyz', ]
+
     
     # init combined data
     comb = {}
@@ -1220,7 +1568,7 @@ if __name__ == '__main__':
         job_name    = job_profile['job_name']
         file_indexes= job_profile['file_indexes']
         params      = job_profile['params']
-        eos_opacity = EoS_MESA_opacity(params, settings)
+        eos_opacity = get_eos_opacity(ieos=10, params=params)    #EoS_MESA_opacity(params, settings)
         
         comb[job_nickname] = {
             xyzs: {
@@ -1243,7 +1591,7 @@ if __name__ == '__main__':
         }
 
             
-        for ifile, file_index in enumerate(file_indexes):
+        for ifile, file_index in enumerate(FILE_INDEXES): # file_indexes
             # init
     
             mpdf = mpdf_read(job_name, file_index, eos_opacity, reset_xyz_by='R1', verbose=1)
@@ -1252,7 +1600,7 @@ if __name__ == '__main__':
             srcfuncs = mpdf.const['sigma_sb'] * sdf['T']**4 / pi
             sdf['srcfunc'] = srcfuncs
 
-            with mupl.hdf5_open(f"{interm_dir}{job_nickname}_{file_index:05d}.lcgen.{no_xy_txt}.hdf5.gz", 'a', metadata) as out_interm_grp1:
+            with mupl.hdf5_open(f"{interm_dir}{job_nickname}_{file_index:05d}.lcgen.{no_xy_txt}.hdf5", 'a', metadata) as out_interm_grp1:
                 #out_interm_grp1 = mupl.hdf5_subgroup(out_interm_file, f"{file_index:05d}", {})
 
                 for xyzs in xyzs_list:
@@ -1268,6 +1616,7 @@ if __name__ == '__main__':
                     # get rays
                     rays, areas, dXs = get_xy_grids_of_rays(
                         sdf, no_xy=no_xy, frac_contained=100., use_adaptive_grid=False, xyzs_names_list=xyzs_names_list)
+                    ray_areas = areas
                     pts    = np.array(sdf[xyzs_names_list])
                     hs     = np.array(sdf[ 'h' ])    # npart-shaped array
                     kernel = sdf.kernel
@@ -1279,9 +1628,19 @@ if __name__ == '__main__':
         
                     
                     # do integration without error estimation
-                    ans   = integrate_along_ray_gridxy_ind(
-                        sdf, srcfuncs, rays, xyzs_names_list=xyzs_names_list, parallel=True, verbose=verbose)
-                    rads, areas_p, taus, inds, contr, pts_order_used = ans
+                    srcfuncs = np.array(srcfuncs)
+                    srcfuncs_err = None # ask to re-calc below
+                    ans   = integrate_along_ray_gridxy(
+                        sdf, srcfuncs, srcfuncs_err, rays, ray_areas,
+                        xyzs_names_list=xyzs_names_list, parallel=True, verbose=verbose,
+                    )
+                    lum, lum_err, rads, areas_p, taus, inds, contr, pts_order_used, jfact_used = ans
+
+                    lum     = set_as_quantity(lum,     mpdf.units['lum']).to(units.Lsun)
+                    lum_err = set_as_quantity(lum_err, mpdf.units['lum']).to(units.Lsun)
+                    print(f"\n\n{job_nickname}_{file_index:05d}_{xyzs}:\n\n\t{lum = :.3f}, {lum_err = :.3f}\n\n")
+
+
                     rads  = (rads * mpdf.units['sigma_sb'] * mpdf.units['temp']**4 / units.sr).cgs
                     inds *= units.dimensionless_unscaled
                     contr = 100 * contr * units.percent
@@ -1289,7 +1648,13 @@ if __name__ == '__main__':
                         np.where(np.isnan(contr), 0., 1. / contr),
                         weights=(rads * areas_u).value,
                     ).to(units.dimensionless_unscaled)
-                    lum   = ((4 * pi * units.sr) * (rads * areas_u)).sum().to(units.solLum)
+                    lum1  = ((4 * pi * units.sr) * (rads * areas_u)).sum().to(units.solLum)
+                    print(f"{lum1=}")
+                    # record time used
+                    python_time_ended = datetime.utcnow()
+                    python_time__used  = python_time_ended - python_time_start
+                    print(f"Ended: {python_time_ended.isoformat()}\nTime Used: {python_time__used}\n")
+if False:
                     area  = (areas_p * areas_u).sum()
                     area_2= (np.where(
                         np.isnan(taus),
@@ -1340,6 +1705,396 @@ if __name__ == '__main__':
         
                     comb[job_nickname][xyzs]['times'][ifile] = data['time']
                     comb[job_nickname][xyzs]['lums' ][ifile] = data['lum' ]
+                    comb[job_nickname][xyzs]['areas'][ifile] = data['area_one']
+                    comb[job_nickname][xyzs]['npt_at_ph_lb'][ifile] = data['npt_at_ph_lb']
+        
+                    
+                    # plotting
+                    if False:
+                        plt.close('all')
+                        fig, ax, outfilenames = plot_imshow(
+                            no_xy, rays_u, rads, data_label="$I$",
+                            xyzs=xyzs, save_label=f"image",
+                            job_profile=job_profile, file_index=file_index, notes=data,
+                            output_dir=output_dir, verbose=verbose_loop)
+                        fig, ax, outfilenames = plot_imshow(
+                            no_xy, rays_u, inds%20, data_label="index % 20 of the most contributed",
+                            xyzs=xyzs, save_label=f"dinds",
+                            job_profile=job_profile, file_index=file_index, cmap='turbo', notes=data,
+                            output_dir=output_dir, verbose=verbose_loop)
+                        fig, ax, outfilenames = plot_imshow(
+                            no_xy, rays_u, contr, data_label="contribution fraction of the most contributed",
+                            xyzs=xyzs, save_label=f"contr",
+                            job_profile=job_profile, file_index=file_index, cmap='seismic', notes=data,
+                            output_dir=output_dir, verbose=verbose_loop)
+                        #fig, ax, outfilenames = plot_imshow(
+                        #    no_xy, rays_u, np.abs(anses_fft), data_label="FFt of $I$", xyzs=xyzs, save_label=f"I-fft",
+                        #    norm=mpl.colors.LogNorm(),
+                        #    job_profile=job_profile, file_index=file_index, notes=data, output_dir=output_dir, verbose=verbose_loop)
+        
+        
+                    # record time used
+                    python_time_ended = datetime.utcnow()
+                    python_time__used  = python_time_ended - python_time_start
+                    print(f"Ended: {python_time_ended.isoformat()}\nTime Used: {python_time__used}\n")
+
+if False:
+        # save data for now
+        with open(f"{interm_dir}lcgen.{no_xy_txt}.json", 'w') as f:
+            mupl.json_dump(comb, f, metadata)
+
+        
+        #plotting
+        plt.close('all')
+        fig, ax = plt.subplots(figsize=(10, 8))
+        for xyzs in xyzs_list:
+            ax.semilogy(
+                comb[job_nickname][xyzs]['times'].to_value(units.yr), comb[job_nickname][xyzs]['lums'].to_value(units.Lsun),
+                'o--', label=f"Viewed from +{xyzs[2]}")
+        ax.legend()
+        ax.set_xlabel('Time / yr')
+        ax.set_ylabel('Luminosity / Lsun')
+        ax.set_xlim(0., 45.)
+        ax.set_ylim(1e4, 5e6)
+        outfilename_noext = f"{output_dir}LC_{job_nickname}_{no_xy_txt}"
+        
+        # write pdf
+        outfilename = f"{outfilename_noext}.pdf"
+        fig.savefig(outfilename)
+        if is_verbose(verbose, 'note'):
+            say('note', None, verbose, f"Fig saved to {outfilename}.")
+        
+        # write png (with plot title)
+        ax.set_title(f"Light curve ({job_nickname}, {no_xy_txt} rays)")
+        outfilename = f"{outfilename_noext}.png"
+        fig.savefig(outfilename)
+        if is_verbose(verbose, 'note'):
+            say('note', None, verbose, f"Fig saved to {outfilename}.")
+                
+if False:
+    plt.close('all')
+    mupl.hdf5_dump(comb, f"{interm_dir}lcgen.{no_xy_txt}.hdf5.gz", metadata)
+
+
+# In[21]:
+
+
+if do_debug and __name__ == '__main__':
+    hfact = mpdf.params['hfact']
+    ndim  = 3
+    parallel = True
+    pts_used = pts[pts_order_used]
+    srcfuncs_used = srcfuncs[pts_order_used]
+    hs_used  = hs[ pts_order_used]
+    T_used   =  np.array(sdf['T'])[pts_order_used]
+    R1_used = np.sum(pts_used**2, axis=1)**0.5
+    vals_grad_used = get_sph_gradient(
+        sdf,
+        val_names   = ['srcfunc', 'T'],
+        locs        = pts_used,
+        vals_at_locs= srcfuncs_used,
+        hs_at_locs  = hs_used,
+        kernel      = kernel,
+        hfact       = hfact,
+        sdf_kdtree  = None,
+        ndim        = ndim,
+        xyzs_names_list=xyzs_names_list,
+        parallel    = parallel,
+        verbose     = verbose,
+    )    # get_sph_gradient returns a (nlocs, ndim, nvals)-shaped np.ndarray
+    srcfuncs_grad_used = vals_grad_used[:, :, 0]
+    T_grad_used        = vals_grad_used[:, :, 1]
+    srcfuncs_grad_frac = np.sum(srcfuncs_grad_used**2, axis=1)**0.5 * hs_used / srcfuncs_used
+    T_grad_frac = np.sum(T_grad_used**2, axis=1)**0.5 * hs_used /T_used
+    print(f"{srcfuncs_grad_frac = }\n{T_grad_frac = }")
+
+
+# In[22]:
+
+
+if do_debug and __name__ == '__main__':
+    output_dir = '../fig/20240708_Tgrad-for-L-per-part/'
+
+
+# #### Old Plots
+
+# In[23]:
+
+
+if do_debug and __name__ == '__main__':
+    fig, ax = plt.subplots(figsize=(10, 8))
+    ax.loglog(R1_used, srcfuncs_grad_frac, '.')
+    #plt.scatter(R1_used, T_grad_frac, marker='.', label='$ \\delta T / T $')
+    ax.set_xlim(1e3 , 1e5)
+    ax.set_ylim(1e-4, 1e1)
+    ax.set_xlabel('$R_1$')
+    ax.set_ylabel('$ \\delta S / S $')
+    fig.savefig(f"{output_dir}dS_S-R1.jpg")
+
+
+# In[24]:
+
+
+if do_debug and __name__ == '__main__':
+    fig, ax = plt.subplots(figsize=(10, 8))
+    ax.loglog(jfact_used, srcfuncs_grad_frac, '.')
+    #plt.scatter(R1_used, T_grad_frac, marker='.', label='$ \\delta T / T $')
+    #ax.set_xlim(1e3, 1e5)
+    ax.set_ylim(1e-4, 1e1)
+    ax.set_xlabel('weight for $L$')
+    ax.set_ylabel('$ \\delta S / S $')
+    fig.savefig(f"{output_dir}dS_S-jfact.jpg")
+
+
+# In[25]:
+
+
+if do_debug and __name__ == '__main__':
+    fig, ax = plt.subplots(figsize=(10, 8))
+    ax.loglog(R1_used, T_grad_frac, '.')
+    #plt.scatter(R1_used, T_grad_frac, marker='.', label='$ \\delta T / T $')
+    ax.set_xlim(1e3 , 1e5)
+    ax.set_ylim(1e-4, 1e1)
+    ax.set_xlabel('$R_1$')
+    ax.set_ylabel('$ \\delta T / T $')
+    fig.savefig(f"{output_dir}dT_T-R1.jpg")
+
+
+# In[26]:
+
+
+if do_debug and __name__ == '__main__':
+    fig, ax = plt.subplots(figsize=(10, 8))
+    ax.loglog(jfact_used, T_grad_frac, '.')
+    #plt.scatter(R1_used, T_grad_frac, marker='.', label='$ \\delta T / T $')
+    #ax.set_xlim(1e3, 1e5)
+    ax.set_ylim(1e-4, 1e1)
+    ax.set_xlabel('weight for $L$')
+    ax.set_ylabel('$ \\delta T / T $')
+    fig.savefig(f"{output_dir}dT_T-jfact.jpg")
+
+
+# In[27]:
+
+
+if do_debug and __name__ == '__main__':
+    fig, ax = plt.subplots(figsize=(10, 8))
+    ax.loglog(R1_used, jfact_used, '.')
+    #plt.scatter(R1_used, T_grad_frac, marker='.', label='$ \\delta T / T $')
+    #ax.set_xlim(1e3, 1e5)
+    ax.set_xlim(1e3 , 1e5)
+    #ax.set_ylim(1e-4, 1e1)
+    ax.set_xlabel('$R_1$')
+    ax.set_ylabel('weight for $L$')
+    fig.savefig(f"{output_dir}jfact-R1.jpg")
+
+
+# #### Good Plots
+
+# In[28]:
+
+
+if do_debug and __name__ == '__main__':
+    fig, ax = plt.subplots(figsize=(10, 8))
+    inds = np.where(jfact_used > np.max(jfact_used) / 1e3)
+    cax = ax.scatter(T_used[inds], (T_grad_frac * T_used)[inds], c=np.log10(jfact_used[inds]), marker='.', label='$ \\delta T $')
+    ax.loglog(T_used[inds], T_used[inds], '-', color='C1', label='$ \\delta T  / T = 1$')
+    ax.loglog(T_used[inds], T_used[inds] * 0.1, '-', color='C3', label='$ \\delta T  / T = 0.1$')
+    cmap = fig.colorbar(cax)
+    cmap.set_label('weight for $L$ (log10)')
+    #plt.scatter(R1_used, T_grad_frac, marker='.', label='$ \\delta T / T $')
+    #ax.set_xlim(1e3, 1e5)
+    ax.set_xlim(1.6e3, 7e1)
+    ax.set_ylim(1e0, 3e3)
+    ax.set_xlabel('$T$')
+    ax.set_ylabel('$ \\delta T $')
+    ax.legend()
+    fig.savefig(f"{output_dir}dT-T.jpg")
+
+
+# In[29]:
+
+
+if do_debug and __name__ == '__main__':
+    fig, ax = plt.subplots(figsize=(10, 8))
+    
+    srcfunc_unit = units.erg / units.s / units.cm**2
+    srcfunc_unit_cgs = (1. * mpdf.units['sigma_sb'] * mpdf.units['temp']**4).to_value(srcfunc_unit)
+    
+    inds = np.where(jfact_used > np.max(jfact_used) / 1e3)
+    cax = ax.scatter(srcfuncs_used[inds] * srcfunc_unit_cgs, (srcfuncs_grad_frac * srcfuncs_used * srcfunc_unit_cgs)[inds],
+                     c=np.log10(jfact_used[inds]), marker='.', label='$ \\delta S $')
+    ax.loglog(srcfuncs_used[inds] * srcfunc_unit_cgs, srcfuncs_used[inds] * srcfunc_unit_cgs,
+              '-', color='C1', label='$ \\delta S  / S = 1$')
+    ax.loglog(srcfuncs_used[inds] * srcfunc_unit_cgs, srcfuncs_used[inds] * srcfunc_unit_cgs * 0.1,
+              '-', color='C3', label='$ \\delta S  / S = 0.1$')
+    cmap = fig.colorbar(cax)
+    cmap.set_label('weight for $L$ (log10)')
+    #plt.scatter(R1_used, T_grad_frac, marker='.', label='$ \\delta T / T $')
+    #ax.set_xlim(1e3, 1e5)
+    ax.set_xlim(1.1828830116184552e8, 433.3651902612169)
+    ax.set_ylim(5e2, 1e8)
+    ax.set_xlabel(f"$S$ / {srcfunc_unit.to_string('latex_inline')}")
+    ax.set_ylabel('$ \\delta S $')
+    ax.legend()
+    fig.savefig(f"{output_dir}dS-S.jpg")
+
+
+# .
+# 
+# ## Main
+# 
+# .
+# 
+
+# In[30]:
+
+
+if __name__ == '__main__' and not do_debug:
+    
+    # init combined data
+    comb = {}
+    
+    for job_nickname in job_nicknames: #['2md', ]:
+        job_profile = JOB_PROFILES_DICT[job_nickname]
+        job_name    = job_profile['job_name']
+        file_indexes= job_profile['file_indexes']
+        params      = job_profile['params']
+        eos_opacity = get_eos_opacity(ieos=10, params=params)    #EoS_MESA_opacity(params, settings)
+        
+        comb[job_nickname] = {
+            xyzs: {
+                'times': np.full(len(file_indexes), np.nan) * units.yr,
+                'lums' : np.full(len(file_indexes), np.nan) * units.Lsun,
+                'lums_err': np.full(len(file_indexes), np.nan) * units.Lsun,
+                'areas': np.full(len(file_indexes), np.nan) * units.au**2,
+                # no of particles at the photosphere - lower bound (weighted average per pixel, weighted by lums contribution)
+                # i.e. how resolved the photosphere is
+                'npt_at_ph_lb': np.full(len(file_indexes), -1) * units.dimensionless_unscaled,
+                '_meta_': {
+                    'lums' : { 'Description': "Luminosity.", },
+                    'areas': { 'Description': (
+                        "Visible size of the simulated object." +
+                        "(i.e. pixel * (area per pixel) * (tau if tau<1 else 1)"), },
+                    'npt_at_ph_lb': { 'Description': (
+                            "no of particles at the photosphere - lower bound" +
+                            "(weighted average per pixel, weighted by lums contribution per pixel)"), },
+                },
+            } for xyzs in xyzs_list
+        }
+
+            
+        for ifile, file_index in enumerate(file_indexes):
+            # init
+    
+            mpdf = mpdf_read(job_name, file_index, eos_opacity, reset_xyz_by='R1', verbose=1)
+            mpdf.calc_sdf_params(['R1'])
+            sdf  = mpdf.data['gas']
+            srcfuncs = mpdf.const['sigma_sb'] * sdf['T']**4 / pi
+            sdf['srcfunc'] = srcfuncs
+
+            with mupl.hdf5_open(
+                f"{interm_dir}{job_nickname}_{file_index:05d}.lcgen.{no_xy_txt}.hdf5",
+                'a', metadata) as out_interm_grp1:
+                #out_interm_grp1 = mupl.hdf5_subgroup(out_interm_file, f"{file_index:05d}", {})
+
+                for xyzs in xyzs_list:
+                    xyzs_names_list = [x for x in xyzs]
+        
+                    
+                    # record time used
+                    python_time_start = datetime.utcnow()
+                    print(f"Start: {python_time_start.isoformat()}")
+                    print(f"\tWorking on {job_nickname}_{file_index:05d}_{xyzs}...")
+        
+                    
+                    # get rays
+                    rays, areas, dXs = get_xy_grids_of_rays(
+                        sdf, no_xy=no_xy, frac_contained=100.,
+                        use_adaptive_grid=False, xyzs_names_list=xyzs_names_list)
+                    pts    = np.array(sdf[xyzs_names_list])
+                    hs     = np.array(sdf[ 'h' ])    # npart-shaped array
+                    kernel = sdf.kernel
+                    kernel_rad = float(kernel.get_radius())
+                    col_kernel = kernel.get_column_kernel_func(samples=1000)
+                    
+                    rays_u = (rays * mpdf.units['dist']).to(units.au)
+                    areas_u = (areas * mpdf.units['dist']**2).to(units.au**2)
+        
+                    
+                    # do integration without error estimation
+                    srcfuncs_err = None # ask to re-calc below
+                    ray_areas = areas
+                    ans   = integrate_along_ray_gridxy(
+                        sdf, srcfuncs, srcfuncs_err, rays, ray_areas, xyzs_names_list=xyzs_names_list,
+                        parallel=True, verbose=verbose)
+                    lum, lum_err, rads, areas_p, taus, inds, contr, pts_order_used, jfact_used = ans
+                    rads  = (rads * mpdf.units['sigma_sb'] * mpdf.units['temp']**4 / units.sr).cgs
+                    inds *= units.dimensionless_unscaled
+                    contr = 100 * contr * units.percent
+                    npt_at_ph_lb = np.average(
+                        np.where(np.isnan(contr), 0., 1. / contr),
+                        weights=(rads * areas_u).value,
+                    ).to(units.dimensionless_unscaled)
+                    lum     = (lum     * mpdf.units['lum']).to(units.solLum)
+                    lum_err = (lum_err * mpdf.units['lum']).to(units.solLum)
+                    # safety check
+                    if is_verbose(verbose, 'err') and not np.isclose(
+                        lum,  ((4 * pi * units.sr) * (rads * areas_u)).sum().to(units.solLum)):
+                        say('err', None, verbose, f"{lum = }\nbut{((4 * pi * units.sr) * (rads * areas_u)).sum().to(units.solLum) = }")
+                    area  = (areas_p * areas_u).sum()
+                    area_2= (np.where(
+                        np.isnan(taus),
+                        1.,
+                        np.where(
+                            taus > 0.636, #PHOTOSPHERE_TAU,
+                            1.0,
+                            0.0,
+                        )) * areas_u).sum()
+                    #anses_fft = fft.fft2(rads.reshape(no_xy).value)
+    
+                    if is_verbose(verbose, 'info'):
+                        say('info', None, verbose,
+                            f"lum = {lum} +\- {lum_err}",
+                            f"area (from <1>) = ({area  /areas_u.sum()*100: 5.1f}%) {area}",
+                            f"area (from tau) = ({area_2/areas_u.sum()*100: 5.1f}%) {area_2}",
+                            f"size (from <1>) = {area**0.5}",
+                            f"size (from tau) = {area_2**0.5}",
+                            f"total possible area = {areas_u.sum()}",
+                            "lower bound of the # of particles at photosphere," +
+                            f"weighted avg over lum per pixels = {npt_at_ph_lb} ",
+                        )
+                
+                    # save interm data
+                    data = {}
+                    data['lum'  ] = lum
+                    data['lum_err' ] = lum_err
+                    data['area_one'] = area
+                    data['area_tau'] = area_2
+                    data['npt_at_ph_lb'] = npt_at_ph_lb
+                    data['xyzs' ] = xyzs
+                    data['time' ] = mpdf.get_time()
+                    data['mpdf_params'] = mpdf.params
+                    data['rays' ] = rays_u[:, 0, :2]
+                    data['ray_unit_vec'] = get_ray_unit_vec(rays_u[0].value)
+                    data['area_per_ray'] = areas_u[0] #areas_u
+                    data['rads' ] = rads
+                    data['contr'] = contr
+                    
+                    data['_meta_'] = {
+                        'npt_at_ph_lb': comb[job_nickname][xyzs]['_meta_']['npt_at_ph_lb'], # add descriptions and such
+                        'rays' : { 'Description': "Pixel centers on the 2D plane defined by xyzs.", },
+                        'rads' : { 'Description': "Specific intensity per pixel.", },
+                        'contr': {
+                            'Description': "Maximum contributed particle's contribution towards the specific intensity, per pixel.", },
+                    }
+    
+                    
+                    mupl.hdf5_dump(data, mupl.hdf5_subgroup(out_interm_grp1, xyzs, overwrite=True), {})
+        
+                    comb[job_nickname][xyzs]['times'][ifile] = data['time']
+                    comb[job_nickname][xyzs]['lums' ][ifile] = data['lum' ]
+                    comb[job_nickname][xyzs]['lums_err'][ifile] = data['lum_err']
                     comb[job_nickname][xyzs]['areas'][ifile] = data['area_one']
                     comb[job_nickname][xyzs]['npt_at_ph_lb'][ifile] = data['npt_at_ph_lb']
         
