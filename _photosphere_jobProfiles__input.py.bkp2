@@ -29,7 +29,7 @@ unitsOut = {
 }
 
 
-PHOTOSPHERE_TAU = 1.0
+PHOTOSPHERE_TAU = 2./3. #np.log(2)
 
 
 # script input parameters
