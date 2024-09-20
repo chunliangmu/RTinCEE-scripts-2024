@@ -2831,7 +2831,7 @@ if __name__ == '__main__' and not do_debug:
                 # i.e. how resolved the photosphere is
                 'npt_at_ph_lb': np.full(len(file_indexes), -1) * units.dimensionless_unscaled,
                 'wavelens': wavlens,
-                'L_wavs': np.full((len(file_indexes), len(wavlens)), np.nan) * (units.Lsun/units.angstrom)
+                'L_wavs': np.full((len(file_indexes), len(wavlens)), np.nan) * (units.Lsun/units.angstrom),
                 '_meta_': {
                     'lums' : { 'Description': "Luminosity.", },
                     'areas': { 'Description': (
