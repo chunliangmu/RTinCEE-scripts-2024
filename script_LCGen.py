@@ -60,6 +60,10 @@ from datetime import datetime, UTC
 now_utc = lambda: datetime.now(UTC)
 now = now_utc
 
+# fix numpy v1.* compatibility
+try: np.trapezoid
+except AttributeError: np.trapezoid = np.trapz
+
 
 # In[4]:
 
