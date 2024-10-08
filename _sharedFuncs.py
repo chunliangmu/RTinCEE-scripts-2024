@@ -37,7 +37,7 @@ def mpdf_read(
     if mpdf is None:
         mpdf = MyPhantomDataFrames()
 
-    mpdf.read(job_name, file_index, reset_xyz_by=reset_xyz_by, calc_params=['vr'], verbose=verbose)
+    mpdf.read(job_name, file_index, reset_xyz_by=reset_xyz_by, calc_params=['vr', 'R1'], verbose=verbose)
 
     if eos_opacity is None:
         eos_opacity = get_eos_opacity(ieos=mpdf.ieos, params=params)

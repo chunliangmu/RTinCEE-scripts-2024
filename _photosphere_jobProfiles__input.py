@@ -39,7 +39,7 @@ JOB_PROFILES_LIST = (
         'file_prefix': 'light',
         #'job_name': '../photosphere/luis_2md/light', # deprecated keyword- will still be added automatically later
         #'file_indexes': np.arange(0, 17600+1, 100),
-        'file_indexes': np.concatenate((np.arange(0, 5000-1, 20), np.arange(5000,  17600+1, 50))),
+        'file_indexes': np.concatenate((np.arange(0, 5000-1, 20), np.arange(5000, 17600+1, 50))),
         'plot_title_suffix': f" for 1.7{Msun_str} primary with Dust",
         'ieos': 10,
         'params': {
