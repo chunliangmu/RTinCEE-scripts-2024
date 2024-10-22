@@ -33,14 +33,6 @@ which is the length of below line of '-' characters.
 # In[2]:
 
 
-# Fixing stupid moviepy import error
-import os
-os.environ["IMAGEIO_FFMPEG_EXE"] = "/usr/bin/ffmpeg"
-
-
-# In[3]:
-
-
 import math
 import numpy as np
 from numpy import pi
@@ -53,6 +45,9 @@ import sarracen
 import itertools
 from scipy import integrate, fft
 from scipy.spatial import kdtree
+# fix weird moviepy cannot find my ffmpeg exe error
+try: from moviepy import editor
+except RuntimeError: import os; os.environ["IMAGEIO_FFMPEG_EXE"] = "/usr/bin/ffmpeg"
 #from moviepy.editor import ImageSequenceClip
 #from os import path
 
@@ -65,7 +60,7 @@ try: np.trapezoid
 except AttributeError: np.trapezoid = np.trapz
 
 
-# In[4]:
+# In[3]:
 
 
 # import my modules listed in ./main/
@@ -84,7 +79,7 @@ from multiprocessing import cpu_count, Pool #Process, Queue
 NPROCESSES = 1 if cpu_count() is None else max(cpu_count(), 1)
 
 
-# In[5]:
+# In[4]:
 
 
 # settings
@@ -118,7 +113,7 @@ if __name__ == '__main__' and is_verbose(verbose, 'note'):
     say('note', "script", verbose, f"Will use {NPROCESSES} processes for parallelization")
 
 
-# In[6]:
+# In[5]:
 
 
 from clmuphantomlib.log import say, is_verbose
@@ -144,7 +139,7 @@ from clmuphantomlib.geometry import get_dist2_from_pts_to_line, get_dist2_from_p
 
 # #### Backup codes
 
-# In[7]:
+# In[6]:
 
 
 def integrate_along_ray(
@@ -210,7 +205,7 @@ def integrate_along_ray(
             dat, dat_steps, dat_bwd_inc
 
 
-# In[8]:
+# In[7]:
 
 
 def integrate_error_along_ray(
@@ -260,7 +255,7 @@ def integrate_error_along_ray(
     return dat_errs, dat_bwd_inc_errs
 
 
-# In[9]:
+# In[8]:
 
 
 @jit(nopython=True, parallel=True)
@@ -361,7 +356,7 @@ def _integrate_along_ray_gridxy_sub_parallel_analysis_old_bkp(
     return anses, indes, contr, jused
 
 
-# In[10]:
+# In[9]:
 
 
 # test runs - Backup
@@ -511,7 +506,7 @@ def _integrate_along_ray_gridxy_sub_parallel_analysis_test(
 _integrate_along_ray_gridxy_sub_parallel_analysis = _integrate_along_ray_gridxy_sub_parallel_analysis_test
 
 
-# In[11]:
+# In[10]:
 
 
 @jit(nopython=True, parallel=True)
@@ -604,7 +599,7 @@ def _integrate_along_ray_gridxy_sub_parallel_err_ind(
     return anses, erres
 
 
-# In[12]:
+# In[11]:
 
 
 # integrate only, no error estiamtes
@@ -726,7 +721,7 @@ def integrate_along_ray_gridxy_ind(
     return anses, areas, ptaus, indes, contr, pts_order_used
 
 
-# In[13]:
+# In[12]:
 
 
 # integrate and integrate error
@@ -874,7 +869,7 @@ def integrate_along_ray_gridxy_err_ind(
 #integrate_along_ray_gridxy_ind = integrate_along_ray_gridxy_err_ind
 
 
-# In[14]:
+# In[13]:
 
 
 # test runs
@@ -1029,7 +1024,7 @@ def _integrate_along_ray_gridxy_sub_parallel_old(
 
 
 
-# In[15]:
+# In[14]:
 
 
 # integrate with error estiamtes
@@ -1209,7 +1204,7 @@ def integrate_along_ray_gridxy_old(
 
 # #### Test codes
 
-# In[16]:
+# In[17]:
 
 
 # test runs
@@ -1297,8 +1292,9 @@ def _integrate_along_rays_gridxy_sub_parallel(
     ndim  = pts_ordered.shape[-1]
     anses = np.zeros(nray)
     indes = np.zeros(nray, dtype=np.int64)    # indexes of max contribution particle
-    contr = np.zeros(nray)    # relative contribution of the max contribution particle
-    jfact = np.zeros(npart)    # is j-th particle in the ordered list used for this calculation?
+    contr = np.zeros(nray)     # relative contribution of the max contribution particle
+    # ifact = np.zeros(nray)     # effective xsec for i-th ray  # NOTE: ifact = pones * ray_areas
+    jfact = np.zeros(npart)    # effective xsec for j-th particle
     pones = np.zeros(nray)
     ptaus = np.full(nray, np.nan)    # lower bound of the optical depth
     estis = np.zeros(nray)
@@ -1322,7 +1318,8 @@ def _integrate_along_rays_gridxy_sub_parallel(
         ans     = 0.
         dans    = 0.
         rad_est = 0.   # estimation of radiance (i.e. ans)
-        dans_max_tmp = 0.
+        # dans_max_tmp = 0.
+        dfac_max_tmp = 0.
         ind     = -1
         fac     = 0. # effectively <1>
         dfac    = 0. # factor
@@ -1458,22 +1455,24 @@ def _integrate_along_rays_gridxy_sub_parallel(
             fac  += dfac    # for getting <1>
             #tau = tau_pr + taus_j[nsample_half]
 
-
             jfact[j] += dfac * ray_area
 
-            # note down the largest contributor
-            if dans > dans_max_tmp:
-                dans_max_tmp = dans
+            # # note down the largest contributor
+            # if dans > dans_max_tmp:
+            #     dans_max_tmp = dans
+            #     ind = pts_order[j]
+            if dfac > dfac_max_tmp:
+                dfac_max_tmp = dfac
                 ind = pts_order[j]
 
 
-            ## terminate the calc for this ray if tau is sufficient large
+            ## terminate the calc for this ray if tau is sufficiently large
             #if tau > tol_tau_base - np.log(ans):
             #    break
             
         anses[i] = ans
         indes[i] = ind
-        if ans > 0: contr[i] = dans_max_tmp / ans
+        if ans > 0: contr[i] = dfac_max_tmp / fac  # dans_max_tmp / ans
         pones[i] = fac
     
     return anses, pones, ptaus, indes, contr, jfact, estis
@@ -1481,7 +1480,7 @@ def _integrate_along_rays_gridxy_sub_parallel(
 
 
 
-# In[17]:
+# In[16]:
 
 
 # integrate with error estiamtes
@@ -2061,20 +2060,20 @@ def B_wav_nb(wavlens_cm: npt.NDArray[float], T_K: float) -> npt.NDArray[float]:
 def L_vu_nb(
     freqs_Hz : npt.NDArray[float],
     Ts_K     : npt.NDArray[float],
-    Aeffs_cm2: npt.NDArray[float],
+    Aeffjs_cm2: npt.NDArray[float],
 ) -> npt.NDArray[float]:
     
     L_vus = np.zeros_like(freqs_Hz)
     nused = len(Ts_K)
     #debug_fact = np.zeros(nused)
     for i in prange(nused):
-        dL_vus = 4 * pi * B_vu_nb(freqs_Hz, Ts_K[i]) * Aeffs_cm2[i]
+        dL_vus = 4 * pi * B_vu_nb(freqs_Hz, Ts_K[i]) * Aeffjs_cm2[i]
         L_vus += dL_vus
         ## debug
-        #dL_sig = 4 * pi * CONST_SIG * Ts_K[i]**4 / pi * Aeffs_cm2[i]
+        #dL_sig = 4 * pi * CONST_SIG * Ts_K[i]**4 / pi * Aeffjs_cm2[i]
         #dL_int = np.trapezoid(dL_vus, freqs_Hz)
         #debug_fact[i] = dL_int/dL_sig
-        #print(dL_int/dL_sig, Ts_K[i], Aeffs_cm2[i])
+        #print(dL_int/dL_sig, Ts_K[i], Aeffjs_cm2[i])
     return L_vus#, debug_fact
 
 
@@ -2082,13 +2081,13 @@ def L_vu_nb(
 def L_wav_nb(
     wavlens_cm: npt.NDArray[float],
     Ts_K      : npt.NDArray[float],
-    Aeffs_cm2 : npt.NDArray[float],
+    Aeffjs_cm2 : npt.NDArray[float],
 ) -> npt.NDArray[float]:
     
     L_wavs= np.zeros_like(wavlens_cm)
     nused = len(Ts_K)
     for i in prange(nused):
-        L_wavs += 4 * pi * B_wav_nb(wavlens_cm, Ts_K[i]) * Aeffs_cm2[i]
+        L_wavs += 4 * pi * B_wav_nb(wavlens_cm, Ts_K[i]) * Aeffjs_cm2[i]
     return L_wavs
 
 
@@ -2112,6 +2111,34 @@ if do_debug and __name__ == '__main__':
 
 
 # ### Running on one dump
+
+# In[93]:
+
+
+if do_debug and __name__ == '__main__':
+
+    job_nickname, file_index = '2md', 1200
+    
+    job_profile = JOB_PROFILES_DICT[job_nickname]
+    job_name    = job_profile['job_name']
+    params      = job_profile['params']
+    eos_opacity = get_eos_opacity(ieos=10, params=params)    #EoS_MESA_opacity(params, settings)
+
+    mpdf = mpdf_read(job_name, file_index, eos_opacity, reset_xyz_by='R1', verbose=1)
+    sdf  = mpdf.data['gas']
+    sdf['kappa'] = sdf['kappa_dust']
+    hs  = mpdf.get_val('h').to(units.au)
+    R1s = mpdf.get_val('R1').to(units.au)
+    kappas = mpdf.get_val('kappa')
+    w_col = sdf.kernel.get_column_kernel_func(1000)
+    dtaus = (kappas * mpdf.get_val('m').to(units.Msun) / hs**2 * w_col(0, 3)).cgs
+    mask_outer = R1s > 14 * units.au    # arbitrarily decided
+    mask_block = dtaus > 0
+    print(f"There are {np.count_nonzero(mask_outer)} particles in the outer region ({np.count_nonzero(mask_outer)/len(sdf)*100:8.4f}%)")
+    print(f"and {np.count_nonzero(mask_block)} particles are opaque ({np.count_nonzero(mask_block)/len(sdf)*100:8.4f}%)")
+    print(f"{min(R1s[mask_block]) = }")
+    plt.hist(R1s[mask_block])
+
 
 # In[24]:
 
@@ -2150,13 +2177,13 @@ if do_debug and __name__ == '__main__':
                 'areas': np.full(len(file_indexes), np.nan) * units.au**2,
                 # no of particles at the photosphere - lower bound (weighted average per pixel, weighted by lums contribution)
                 # i.e. how resolved the photosphere is
-                'npt_at_ph_lb': np.full(len(file_indexes), -1) * units.dimensionless_unscaled,
+                'N_res': np.full(len(file_indexes), -1) * units.dimensionless_unscaled,
                 '_meta_': {
                     'lums' : { 'Description': "Luminosity.", },
                     'areas': { 'Description': (
                         "Visible size of the simulated object." +
                         "(i.e. pixel * (area per pixel) * (tau if tau<1 else 1)"), },
-                    'npt_at_ph_lb': { 'Description': (
+                    'N_res': { 'Description': (
                             "no of particles at the photosphere - lower bound" +
                             "(weighted average per pixel, weighted by lums contribution per pixel)"), },
                 },
@@ -2232,12 +2259,12 @@ if do_debug and __name__ == '__main__':
                     inds *= units.dimensionless_unscaled
                     contr = 100 * contr * units.percent
                     try:
-                        npt_at_ph_lb = np.average(
+                        N_res = np.average(
                             np.where(np.isnan(contr), 0., 1. / contr),
                             weights=(rads * areas_u).value,
                         ).to(units.dimensionless_unscaled)
                     except ZeroDivisionError:
-                        npt_at_ph_lb = 0.
+                        N_res = 0.
                     lum1  = ((4 * pi * units.sr) * (rads * areas_u)).sum().to(units.solLum)
                     print(    f"Lum err       : {lum_err = :12.2f}" +
                           f"    (rel err  = {(lum_err / lum1).to(units.percent): 6.2f})")
@@ -2268,15 +2295,42 @@ if do_debug and __name__ == '__main__':
                             f"size (from <1>) = {area**0.5}",
                             f"size (from tau) = {area_2**0.5}",
                             f"total possible area = {areas_u.sum()}",
-                            f"lower bound of the # of particles at photosphere, weighted avg over lum per pixels = {npt_at_ph_lb} ",
+                            f"lower bound of the # of particles at photosphere, weighted avg over lum per pixels = {N_res} ",
                         )
+
+
+                    # debug
+                    print()
+                    print(f"{int(rads.size/2)-1 = }\n{rads[int(rads.size/2)-1].cgs = }")
+                    inds_active = np.logical_or(taus > PHOTOSPHERE_TAU, np.isnan(taus))
+                    print(f"{np.count_nonzero(inds_active) / taus.size * 100} % rays hit photosphere")
+                    print(f"{np.std(rads[inds_active]) / np.average(rads[inds_active]) = }")
+                    inds = np.logical_or(taus > PHOTOSPHERE_TAU, np.isnan(taus))
+                    lum_in_ph = (4*pi*units.sr*(rads[inds] * areas_u[inds]).sum()).to(units.Lsun)
+                    print(f"{lum       = :.2f}\n{lum_in_ph = :.2f}    ({(lum_in_ph / lum).to(units.percent):.2f})")
+                    rads_dict[use_new_algo] = rads[inds]
+                    if use_new_algo:
+                        rads_dict[not use_new_algo] = estis[inds]
+
+    
+                    # SEDs
+                    Ts      = set_as_quantity(sdf['T'].iloc[pts_order_used], mpdf.units['temp']).cgs
+                    Aeffjs   = set_as_quantity(jfact_used, mpdf.units['dist']**2).cgs
+                    L_wavs  = L_wav_nb(wavlens.cgs.value, Ts.cgs.value, Aeffjs.cgs.value)
+                    L_wavs *= units.erg / units.s / units.cm
+                    L_wavs  = L_wavs.to(units.Lsun / units.cm)
+                    
+                    L_int = np.trapezoid(L_wavs, wavlens).to(units.Lsun)
+                    print(f"{L_int = }\n{(L_int/lum-1.).to(units.percent) = }\n")
+                    print()
+                    
                 
                     # save interm data
                     data = {}
                     data['lum'  ] = lum
                     data['area_one'] = area
                     data['area_tau'] = area_2
-                    data['npt_at_ph_lb'] = npt_at_ph_lb
+                    data['N_res'] = N_res
                     data['xyzs' ] = xyzs
                     data['time' ] = mpdf.get_time()
                     data['mpdf_params'] = mpdf.params
@@ -2285,9 +2339,10 @@ if do_debug and __name__ == '__main__':
                     data['area_per_ray'] = areas_u[0] #areas_u
                     data['rads' ] = rads
                     data['contr'] = contr
+                    data['Aeffjs'] = Aeffjs
                     
                     data['_meta_'] = {
-                        'npt_at_ph_lb': comb[job_nickname][xyzs]['_meta_']['npt_at_ph_lb'],
+                        'N_res': comb[job_nickname][xyzs]['_meta_']['N_res'],
                         'rays' : { 'Description': "Pixel centers on the 2D plane defined by xyzs.", },
                         'rads' : { 'Description': "Specific intensity per pixel.", },
                         'contr': {
@@ -2300,7 +2355,7 @@ if do_debug and __name__ == '__main__':
                     comb[job_nickname][xyzs]['times'][ifile] = data['time']
                     comb[job_nickname][xyzs]['lums' ][ifile] = data['lum' ]
                     comb[job_nickname][xyzs]['areas'][ifile] = data['area_one']
-                    comb[job_nickname][xyzs]['npt_at_ph_lb'][ifile] = data['npt_at_ph_lb']
+                    comb[job_nickname][xyzs]['N_res'][ifile] = data['N_res']
         
                     
                     # plotting
@@ -2332,32 +2387,7 @@ if do_debug and __name__ == '__main__':
                         #    no_xy, rays_u, np.abs(anses_fft), data_label="FFt of $I$", xyzs=xyzs, save_label=f"I-fft",
                         #    norm=mpl.colors.LogNorm(),
                         #    job_profile=job_profile, file_index=file_index, notes=data, output_dir=output_dir, verbose=verbose_loop)
-
-
-                    # debug
-                    print()
-                    print(f"{int(rads.size/2)-1 = }\n{rads[int(rads.size/2)-1].cgs = }")
-                    inds_active = np.logical_or(taus > PHOTOSPHERE_TAU, np.isnan(taus))
-                    print(f"{np.count_nonzero(inds_active) / taus.size * 100} % rays hit photosphere")
-                    print(f"{np.std(rads[inds_active]) / np.average(rads[inds_active]) = }")
-                    inds = np.logical_or(taus > PHOTOSPHERE_TAU, np.isnan(taus))
-                    lum_in_ph = (4*pi*units.sr*(rads[inds] * areas_u[inds]).sum()).to(units.Lsun)
-                    print(f"{lum       = :.2f}\n{lum_in_ph = :.2f}    ({(lum_in_ph / lum).to(units.percent):.2f})")
-                    rads_dict[use_new_algo] = rads[inds]
-                    if use_new_algo:
-                        rads_dict[not use_new_algo] = estis[inds]
-
-    
-                    # SEDs
-                    Ts      = set_as_quantity(sdf['T'].iloc[pts_order_used], mpdf.units['temp']).cgs
-                    Aeffs   = set_as_quantity(jfact_used, mpdf.units['dist']**2).cgs
-                    L_wavs  = L_wav_nb(wavlens.cgs.value, Ts.cgs.value, Aeffs.cgs.value)
-                    L_wavs *= units.erg / units.s / units.cm
-                    L_wavs  = L_wavs.to(units.Lsun / units.cm)
                     
-                    L_int = np.trapezoid(L_wavs, wavlens).to(units.Lsun)
-                    print(f"{L_int = }\n{(L_int/lum-1.).to(units.percent) = }\n")
-                    print()
                     
                     # plotting - spec in wavlen space
                     spec_dist = 10 * units.parsec
@@ -2444,8 +2474,8 @@ if do_debug and __name__ == '__main__':
     # wavelen 1e-11m ~ 0.1m
     wavlens = (np.logspace(-10, 0, 10000) * units.m).cgs
     Ts      = set_as_quantity(sdf['T'].iloc[pts_order_used], mpdf.units['temp']).cgs
-    Aeffs   = set_as_quantity(jfact_used, mpdf.units['dist']**2).cgs
-    L_wavs  = L_wav_nb(wavlens.cgs.value, Ts.cgs.value, Aeffs.cgs.value)
+    Aeffjs   = set_as_quantity(jfact_used, mpdf.units['dist']**2).cgs
+    L_wavs  = L_wav_nb(wavlens.cgs.value, Ts.cgs.value, Aeffjs.cgs.value)
     L_wavs *= units.erg / units.s / units.cm
     L_wavs  = L_wavs.to(units.Lsun / units.cm)
     
@@ -2510,7 +2540,7 @@ if do_debug and __name__ == '__main__':
 #     L = 0
 #     srcfuncs_u = srcfuncs[pts_order_used] * (mpdf.units['sigma_sb'] * mpdf.units['temp']**4)
 #     for i in prange(nused):
-#         L += 4 * pi * srcfuncs_u[i] * Aeffs[i]
+#         L += 4 * pi * srcfuncs_u[i] * Aeffjs[i]
 #     L = L.to(units.Lsun)
 #     L
 
@@ -2519,8 +2549,8 @@ if do_debug and __name__ == '__main__':
 #         # freq: minimum range 1e9~1e20 Hz (covering microwave to x-ray)
 #         freqs = (np.logspace(9, 20, 10000) * units.Hz).cgs
 #         Ts    = set_as_quantity(sdf['T'].iloc[pts_order_used], mpdf.units['temp'])
-#         Aeffs = set_as_quantity(jfact_used, mpdf.units['dist']**2)
-#         L_vus = L_vu_nb(freqs.cgs.value, Ts.cgs.value, Aeffs.cgs.value)
+#         Aeffjs = set_as_quantity(jfact_used, mpdf.units['dist']**2)
+#         L_vus = L_vu_nb(freqs.cgs.value, Ts.cgs.value, Aeffjs.cgs.value)
 #         L_vus *= units.erg
 #         L_vus = L_vus.to(units.Lsun / units.Hz)
 #         
@@ -2833,7 +2863,7 @@ if __name__ == '__main__' and not do_debug:
                 'areas': np.full(len(file_indexes), np.nan) * units.au**2,
                 # no of particles at the photosphere - lower bound (weighted average per pixel, weighted by lums contribution)
                 # i.e. how resolved the photosphere is
-                'npt_at_ph_lb': np.full(len(file_indexes), -1) * units.dimensionless_unscaled,
+                'N_res': np.full(len(file_indexes), -1) * units.dimensionless_unscaled,
                 'wavelens': wavlens,
                 'L_wavs': np.full((len(file_indexes), len(wavlens)), np.nan) * (units.Lsun/units.angstrom),
                 '_meta_': {
@@ -2841,7 +2871,7 @@ if __name__ == '__main__' and not do_debug:
                     'areas': { 'Description': (
                         "Visible size of the simulated object." +
                         "(i.e. pixel * (area per pixel) * (tau if tau<1 else 1)"), },
-                    'npt_at_ph_lb': { 'Description': (
+                    'N_res': { 'Description': (
                             "no of particles at the photosphere - lower bound" +
                             "(weighted average per pixel, weighted by lums contribution per pixel)"), },
                 },
@@ -2918,8 +2948,8 @@ if __name__ == '__main__' and not do_debug:
                     
                     # SEDs
                     Ts      = set_as_quantity(sdf['T'].iloc[pts_order_used], mpdf.units['temp']).cgs
-                    Aeffs   = set_as_quantity(jfact_used, mpdf.units['dist']**2).cgs
-                    L_wavs  = L_wav_nb(wavlens.cgs.value, Ts.cgs.value, Aeffs.cgs.value)
+                    Aeffjs   = set_as_quantity(jfact_used, mpdf.units['dist']**2).cgs
+                    L_wavs  = L_wav_nb(wavlens.cgs.value, Ts.cgs.value, Aeffjs.cgs.value)
                     L_wavs *= units.erg / units.s / units.cm
                     L_wavs  = L_wavs.to(units.Lsun / units.angstrom)
                     
@@ -2931,13 +2961,6 @@ if __name__ == '__main__' and not do_debug:
                     rads  = (rads * mpdf.units['sigma_sb'] * mpdf.units['temp']**4 / units.sr).cgs
                     inds *= units.dimensionless_unscaled
                     contr = 100 * contr * units.percent
-                    try:
-                        npt_at_ph_lb = np.average(
-                            np.where(np.isnan(contr), 0., 1. / contr),
-                            weights=(rads * areas_u).value,
-                        ).to(units.dimensionless_unscaled)
-                    except ZeroDivisionError:
-                        npt_at_ph_lb = 0.
                     lum1  = ((4 * pi * units.sr) * (rads * areas_u)).sum().to(units.solLum)
                     print(    f"Lum err       : {lum_err = :12.2f}" +
                           f"    (rel err  = {(lum_err / lum1).to(units.percent): 6.2f})")
@@ -2948,8 +2971,9 @@ if __name__ == '__main__' and not do_debug:
                         print(f"Old estimation: {lume    = :12.2f}" +
                               f"    (rel diff = {(2 * (lum1 - lume) / (lum1 + lume)).to(units.percent):+6.2f})")
                     print()
-                    
-                    area  = (areas_p * areas_u).sum()
+
+                    Aeffis= areas_p * areas_u
+                    area  = Aeffis.sum()
                     area_2= (np.where(
                         np.isnan(taus),
                         1.,
@@ -2959,6 +2983,14 @@ if __name__ == '__main__' and not do_debug:
                             0.0,
                         )) * areas_u).sum()
                     #anses_fft = fft.fft2(rads.reshape(no_xy).value)
+
+                    try:
+                        mask = np.logical_and(~np.isnan(contr), contr.value)
+                        N_res = np.average(
+                            1. / contr[mask], weights=(rads*areas_u)[mask].value,
+                        ).to(units.dimensionless_unscaled)
+                    except ZeroDivisionError:
+                        N_res = 0.
     
                     if is_verbose(verbose, 'info'):
                         say('info', 'main()', verbose,
@@ -2968,7 +3000,7 @@ if __name__ == '__main__' and not do_debug:
                             f"size (from <1>) = {area**0.5}",
                             f"size (from tau) = {area_2**0.5}",
                             f"total possible area = {areas_u.sum()}",
-                            f"lower bound of the # of particles at photosphere, weighted avg over lum per pixels = {npt_at_ph_lb} ",
+                            f"lower bound of the # of particles at photosphere, weighted avg over lum per pixels = {N_res} ",
                         )
                 
                     # save interm data
@@ -2977,7 +3009,7 @@ if __name__ == '__main__' and not do_debug:
                     data['lum_err' ] = lum_err
                     data['area_one'] = area
                     data['area_tau'] = area_2
-                    data['npt_at_ph_lb'] = npt_at_ph_lb
+                    data['N_res'] = N_res
                     data['xyzs' ] = xyzs
                     data['time' ] = mpdf.get_time()
                     data['mpdf_params'] = mpdf.params
@@ -2988,9 +3020,11 @@ if __name__ == '__main__' and not do_debug:
                     data['contr'] = contr
                     data['wavlens'] = wavlens
                     data['L_wavs'] = L_wavs
+                    data['Aeffis'] = Aeffis
+                    data['Aeffjs'] = Aeffjs
                     
                     data['_meta_'] = {
-                        'npt_at_ph_lb': comb[job_nickname][xyzs]['_meta_']['npt_at_ph_lb'],
+                        'N_res': comb[job_nickname][xyzs]['_meta_']['N_res'],
                         'rays' : { 'Description': "Pixel centers on the 2D plane defined by xyzs.", },
                         'rads' : { 'Description': "Specific intensity per pixel.", },
                         'contr': {
@@ -3004,7 +3038,7 @@ if __name__ == '__main__' and not do_debug:
                     comb[job_nickname][xyzs]['lums' ][ifile] = data['lum' ]
                     comb[job_nickname][xyzs]['lums_err'][ifile] = data['lum_err']
                     comb[job_nickname][xyzs]['areas'][ifile] = data['area_one']
-                    comb[job_nickname][xyzs]['npt_at_ph_lb'][ifile] = data['npt_at_ph_lb']
+                    comb[job_nickname][xyzs]['N_res'][ifile] = data['N_res']
                     comb[job_nickname][xyzs]['L_wavs'][ifile] = data['L_wavs']
         
                     
