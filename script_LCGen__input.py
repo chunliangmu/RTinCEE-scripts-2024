@@ -5,7 +5,7 @@ Input Parameters for my scripts.
 # imports and internal settings
 import numpy as np
 from astropy import units
-from _photosphere_jobProfiles__input import interm_dir, output_dir, unitsOut, PHOTOSPHERE_TAU, JOB_PROFILES_DICT #, fps
+from _photosphere_jobProfiles__input import interm_dir, output_dir, unitsOut, SPEC_DIST, PHOTOSPHERE_TAU, JOB_PROFILES_DICT #, fps
 
 
 verbose = 6

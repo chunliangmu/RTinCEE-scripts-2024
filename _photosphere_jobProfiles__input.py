@@ -26,9 +26,11 @@ unitsOut = {
     'opacity': units.cm**2 / units.g,
     'dimless': units.dimensionless_unscaled,
     'speed': units.km/units.s,
+    'flux' : (units.erg / units.s / units.cm**2),
+    'flux_wav' : (units.erg / units.s / units.cm**2) / units.angstrom,
 }
 
-
+SPEC_DIST = 10 * units.parsec
 PHOTOSPHERE_TAU = 2./3. #np.log(2)
 
 
