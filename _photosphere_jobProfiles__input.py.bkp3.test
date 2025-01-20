@@ -28,6 +28,7 @@ unitsOut = {
     'opacity': units.cm**2 / units.g,
     'dimless': units.dimensionless_unscaled,
     'speed': units.km/units.s,
+    'flux' : (units.erg / units.s / units.cm**2),
 }
 
 

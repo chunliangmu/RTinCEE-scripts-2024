@@ -7,6 +7,8 @@ import numpy as np
 from astropy import units
 from _photosphere_jobProfiles__input import interm_dir, output_dir, unitsOut, SPEC_DIST, PHOTOSPHERE_TAU, JOB_PROFILES_DICT #, fps
 
+unitsOut['flux_wav'] = (units.erg / units.s / units.cm**2) / units.angstrom
+
 
 verbose = 6
 

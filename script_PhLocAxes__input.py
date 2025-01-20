@@ -5,7 +5,6 @@ Input Parameters for my scripts.
 # imports and internal settings
 from _photosphere_jobProfiles__input import (
     output_dir, interm_dir,
-    out_dir,    # deprecated- same as output_dir
     fps, unitsOut,
     PHOTOSPHERE_TAU,
     JOB_PROFILES_LIST, JOB_PROFILES_GROUPS, JOB_PROFILES_DICT,
@@ -16,6 +15,8 @@ from clmuphantomlib.units_util import DEFAULT_UNITS
 # script input parameters
 
 verbose = 3
+
+output_dir = f'../fig/20241212_photosphere-axes_v-vs-R1/'
 
 
 # units used in the dump file
