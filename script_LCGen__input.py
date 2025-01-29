@@ -4,7 +4,9 @@ Input Parameters for my scripts.
 
 # imports and internal settings
 import numpy as np
+from numpy import pi
 from astropy import units
+from astropy import constants as const
 from _photosphere_jobProfiles__input import interm_dir, output_dir, unitsOut, SPEC_DIST, PHOTOSPHERE_TAU, JOB_PROFILES_DICT #, fps
 
 unitsOut['flux_wav'] = (units.erg / units.s / units.cm**2) / units.angstrom
@@ -14,10 +16,29 @@ verbose = 6
 
 job_nicknames = ['2md', '4md']#, '4m', '2m_2022']
 xyzs_list  = ['xyz', 'xzy']
-no_xy=(1024, 1024)
+no_xy=(256, 256)
 no_xy_txt = 'x'.join([f'{i}' for i in no_xy])
 output_dir = f'../fig/20240222_LCGen/{no_xy_txt}/'
 verbose_loop = 0
+
+
+# at t=0... (only used when use_Tscales=True)
+# numbers from Gonzalez-2024-1
+use_Tscales : bool = True
+if use_Tscales: interm_dir += 'Tscaled_'
+Ls_init = {
+    '2md': 5180 * units.Lsun,
+    '4md': 1.19e4 * units.Lsun,
+}
+
+Rs_ph_init = {
+    '2md': 260 * units.Rsun,
+    '4md': 330 * units.Rsun,
+}
+Ts_ph_init = {
+    n: ((Ls_init[n] / (4*pi*Rs_ph_init[n]**2 * const.sigma_sb))**(1/4)).to(units.K)
+    for n in job_nicknames
+}
 
 # - SED settings -
 # freq: minimum range 1e9~1e20 Hz (covering microwave to x-ray)
@@ -25,3 +46,16 @@ verbose_loop = 0
 #wavlens = (np.logspace(-10, 0, 10000) * units.m).cgs   # default (broad)
 wavlens = (np.logspace(-2, 5., 10000) * units.um).cgs   # default
 #wavlens = (np.logspace(-1, 3.5, 50) * units.um).cgs  # mcfost
+
+
+if __name__ == '__main__':
+    # gen Tscales
+    from _sharedFuncs import gen_Tscales
+    for job_nickname in job_nicknames:
+        job_profile = JOB_PROFILES_DICT[job_nickname]
+        scales = gen_Tscales(
+            job_name = job_profile['job_name'],
+            T_ph = Ts_ph_init[job_nickname], R_ph = Rs_ph_init[job_nickname],
+            do_save= True, params = job_profile['params'], verbose=verbose,
+        )
+        

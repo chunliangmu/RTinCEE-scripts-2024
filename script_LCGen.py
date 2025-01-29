@@ -3020,7 +3020,7 @@ if __name__ == '__main__' and not do_debug:
                     data['contr'] = contr
                     data['wavlens'] = wavlens
                     data['L_wavs'] = L_wavs
-                    data['Aeffis'] = Aeffis
+                    # data['Aeffis'] = Aeffis
                     data['Aeffjs'] = Aeffjs
                     
                     data['_meta_'] = {
@@ -3043,7 +3043,7 @@ if __name__ == '__main__' and not do_debug:
         
                     
                     # plotting
-                    if True:
+                    if False:
                         #save_label_addon = '-new' if use_new_algo else '-old'
                         save_label_addon=''
                         plt.close('all')

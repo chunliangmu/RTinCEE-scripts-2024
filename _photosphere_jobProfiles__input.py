@@ -3,8 +3,6 @@
 
 """
 Input Parameters describing sims saved in ../photosphere/
-
-This one is for testing.
 """
 
 # imports and internal settings
@@ -13,7 +11,7 @@ from astropy import units
 Msun_str = units.Msun.to_string('latex_inline')
 
 # output directory- remember to add the final sep '/' at the end
-interm_dir = '../interm/test_'
+interm_dir = '../interm/'
 output_dir = '../fig/'
 out_dir    = output_dir  # deprecated keyword
 
@@ -39,10 +37,11 @@ PHOTOSPHERE_TAU = 2./3. #np.log(2)
 # script input parameters
 JOB_PROFILES_LIST = (
     {
-        'raw_dir' : '../photosphere/luis_2md/',
+        'raw_dir' : '../raw/luis_2md/',
         'file_prefix': 'light',
         #'job_name': '../photosphere/luis_2md/light', # deprecated keyword- will still be added automatically later
-        'file_indexes': np.array([0, 1200, 2000, 4800, 6400, 8000, 15600, 17600]), #np.arange(0, 17600+1, 100),
+        #'file_indexes': np.arange(0, 17600+1, 100),
+        'file_indexes': np.concatenate((np.arange(0, 5000-1, 20), np.arange(5000, 17600+1, 50))),
         'plot_title_suffix': f" for 1.7{Msun_str} primary with Dust",
         'ieos': 10,
         'params': {
@@ -56,10 +55,10 @@ JOB_PROFILES_LIST = (
         'color': 'blue',
     },
     {
-        'raw_dir' : '../photosphere/luis_4md/',
+        'raw_dir' : '../raw/luis_4md/',
         'file_prefix': 'light',
         #'job_name': '../photosphere/luis_4md/light',
-        'file_indexes': np.array([0, 1200, 2000, 4800, 6400, 8000, 15600, 17600]), #np.arange(0, 17600+1, 100),
+        'file_indexes': np.arange(0, 17600+1, 100),
         'plot_title_suffix': f" for 3.7{Msun_str} primary with Dust",
         'ieos': 10,
         'params': {
@@ -73,7 +72,7 @@ JOB_PROFILES_LIST = (
         'color': 'blue',
     },
     {
-        'raw_dir' : '../photosphere/miguel_2m/',
+        'raw_dir' : '../raw/miguel_2m/',
         'file_prefix': 'binary',
         #'job_name': '../photosphere/miguel_2m/binary',
         'file_indexes': np.arange(0, 5000+1, 100),
@@ -90,7 +89,7 @@ JOB_PROFILES_LIST = (
         'color': 'orange',
     },
     {
-        'raw_dir' : '../photosphere/miguel_4m/',
+        'raw_dir' : '../raw/miguel_4m/',
         'file_prefix': 'binary',
         #'job_name': '../photosphere/miguel_4m/binary',
         'file_indexes': np.arange(0, 5000+1, 100),
@@ -107,7 +106,7 @@ JOB_PROFILES_LIST = (
         'color': 'orange',
     },
     {
-        'raw_dir' : '../photosphere/miguel_2m_2022/',
+        'raw_dir' : '../raw/miguel_2m_2022/',
         'file_prefix': 'binary',
         #'job_name': '../photosphere/miguel_2m_2022/binary',
         'file_indexes': np.arange(0, 6000+1, 100),

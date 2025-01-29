@@ -28,6 +28,7 @@ def mpdf_read(
     kappa_tol : units.Quantity = 1e-7*(units.cm**2/units.g),
     T_cond_oxy: units.Quantity = 1450 * units.K,
     do_extrap: bool = False,
+    use_Tscales: bool = False,
     verbose: int = 3,
 ) -> MyPhantomDataFrames:
     """Read the dump files and get T and kappa,
@@ -47,6 +48,15 @@ def mpdf_read(
     
     temp_key = {'T', 'temperature', 'Tdust'}.intersection(mpdf.data['gas'].keys()).pop()
     mpdf.data['gas']['T'    ] = mpdf.data['gas'][temp_key]
+    if use_Tscales:
+        # apply the temperature scales we obtained earilier
+        filename = f"{job_name}_Tscales.npy"
+        scales = np.load(filename)
+        inds = mpdf.data['gas']['iorig'].isin(scales['iorig'])    # warning: may cause indexes mismatch
+        # make sure that doesn't happen
+        assert np.all(mpdf.data['gas'][inds]['iorig'] == scales['iorig'])
+        mpdf.data['gas'].loc[inds, 'T'] *= scales['T_scale']
+        
     if 'kappa' in mpdf.data['gas'].keys():
         unit_opacity = units.cm**2/units.g    # opacity units in original phantom dumpfiles
         kappa_mesa = eos_opacity.get_kappa(mpdf.get_val('rho'), mpdf.get_val('T'), do_extrap=do_extrap)
