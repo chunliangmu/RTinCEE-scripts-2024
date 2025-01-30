@@ -118,7 +118,7 @@ def gen_Tscales(
         calc_params=['R1'], verbose=verbose)
 
     # particle indexes
-    inds = mpdf.get_val('R1') > R_ph
+    inds = mpdf.get_val('R1') + 2*mpdf.get_val('h') > R_ph
     scales = np.zeros(
         np.count_nonzero(inds),
         dtype=[('iorig', np.int64), ('T_scale', np.float64)])
