@@ -118,7 +118,7 @@ def gen_Tscales(
         calc_params=['R1'], verbose=verbose)
 
     # particle indexes
-    inds = mpdf.get_val('R1') + 2*mpdf.get_val('h') > R_ph
+    inds = mpdf.get_val('R1') + mpdf.get_val('h') > R_ph
     scales = np.zeros(
         np.count_nonzero(inds),
         dtype=[('iorig', np.int64), ('T_scale', np.float64)])
@@ -135,5 +135,11 @@ def gen_Tscales(
         say('note', None, verbose, f"Saving to {filename}")
         with open(filename, 'wb') as fp:
             np.save(fp, scales)
+
+    say('note', None, verbose,
+        f"Scaling {len(scales)} particles out of {len(mpdf.data['gas'])}",
+        f"\t({len(scales) / len(mpdf.data['gas']) * 100:.2f}%)",
+        f"{min(scales['T_scale']) = :5.3f}    {max(scales['T_scale']) = :5.3f}",
+    )
 
     return scales

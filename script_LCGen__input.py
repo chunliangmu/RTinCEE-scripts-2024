@@ -15,8 +15,8 @@ unitsOut['flux_wav'] = (units.erg / units.s / units.cm**2) / units.angstrom
 verbose = 6
 
 job_nicknames = ['2md', '4md']#, '4m', '2m_2022']
-xyzs_list  = ['xyz', 'xzy', 'yzx']
-no_xy=(64, 64)
+xyzs_list  = ['xyz']#, 'xzy', 'yzx'
+no_xy=(256, 256)
 no_xy_txt = 'x'.join([f'{i}' for i in no_xy])
 output_dir = f'../fig/20240222_LCGen/{no_xy_txt}/'
 verbose_loop = 0
@@ -24,13 +24,13 @@ verbose_loop = 0
 
 # temp: ***REMOVE BELOW LINES BEFORE FULL RUN!!!***
 for n in job_nicknames:
-    JOB_PROFILES_DICT[n]['file_indexes'] = [0, 400, 800]
+    JOB_PROFILES_DICT[n]['file_indexes'] = np.arange(0, 4800+1, 400) #[0]
 
 # at t=0... (only used when use_Tscales=True)
 # numbers from Gonzalez-2024-1
 use_Tscales : bool = True
 if use_Tscales: interm_dir += 'Tscaled_'
-Ls_mesa = {
+Ls_mesa = {    # from Gonzalez-2024-1
     '2md': 5180 * units.Lsun,
     '4md': 1.19e4 * units.Lsun,
 }
@@ -40,14 +40,16 @@ Rs_ph_mesa = {    # from Gonzalez-2024-1
     '4md': 330 * units.Rsun,
 }
 
-Rs_ph_init = {    # from last run (from <1>)
-    '2md': 2.76 * units.au,
-    '4md': 3.30 * units.au,
+# Rs_ph_init = Rs_ph_mesa
+Rs_ph_init = {  # Set to make initial luminosity close to mesa value
+                #   obtained by iterating Rs_ph_init at t=0 until L ~ L_mesa
+    '2md': 359 * units.Rsun,
+    '4md': 401 * units.Rsun,
 }
 
-Ts_ph_mesa = {
+Ts_ph_init = {
     n: ((Ls_mesa[n] / (4*pi*Rs_ph_init[n]**2 * const.sigma_sb))**(1/4)).to(units.K)
-    for n in job_nicknames
+    for n in Ls_mesa.keys()
 }
 
 # - SED settings -
@@ -61,11 +63,12 @@ wavlens = (np.logspace(-2, 5., 10000) * units.um).cgs   # default
 if __name__ == '__main__':
     # gen Tscales
     from _sharedFuncs import gen_Tscales
+    if verbose: print('note', None, verbose, f"\n{Ts_ph_init = }\n")
     for job_nickname in job_nicknames:
         job_profile = JOB_PROFILES_DICT[job_nickname]
         scales = gen_Tscales(
             job_name = job_profile['job_name'],
-            T_ph = Ts_ph_mesa[job_nickname], R_ph = Rs_ph_mesa[job_nickname],
+            T_ph = Ts_ph_init[job_nickname], R_ph = Rs_ph_mesa[job_nickname],
             do_save= True, params = job_profile['params'], verbose=verbose,
         )
         
