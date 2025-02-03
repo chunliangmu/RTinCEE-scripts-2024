@@ -52,10 +52,16 @@ def mpdf_read(
         # apply the temperature scales we obtained earilier
         filename = f"{job_name}_Tscales.npy"
         scales = np.load(filename)
-        inds = mpdf.data['gas']['iorig'].isin(scales['iorig'])    # warning: may cause indexes mismatch
-        # make sure that doesn't happen
-        assert np.all(mpdf.data['gas'][inds]['iorig'] == scales['iorig'])
-        mpdf.data['gas'].loc[inds, 'T'] *= scales['T_scale']
+        # loop over iorig to make sure indexes mismatch doesn't happen
+        sdf = mpdf.data['gas']
+        failed_count = 0
+        for j, T_scale in zip(scales['iorig'], scales['T_scale']):
+            #    note: particles can be deleted, so we need to try
+            try: sdf.at[j-1, 'T'] *= T_scale
+            except KeyError: failed_count += 1
+        say('note', None, verbose,
+            f"Using '{filename}' to scale temperature",
+            f"{failed_count} out of {len(scales)} particles not found.")
         
     if 'kappa' in mpdf.data['gas'].keys():
         unit_opacity = units.cm**2/units.g    # opacity units in original phantom dumpfiles
@@ -76,7 +82,7 @@ def mpdf_read(
         mpdf.data['gas']['kappa_dust'] = get_val_in_unit(mpdf.data['gas']['kappa_dust'], unit_opacity, mpdf.units['opacity'])
         
         if is_verbose(verbose, 'debug'):
-            say('debug', 'mpdf_read()', verbose,
+            say('debug', None, verbose,
                 f"{np.count_nonzero(mpdf.data['gas']['kappa_dust']) = }",
                 f"{np.count_nonzero(mpdf.data['gas']['kappa'])      = }")
     else:
@@ -129,6 +135,8 @@ def gen_Tscales(
         units.dimensionless_unscaled)
     # scale down only, do not heat the particles
     scales['T_scale'][scales['T_scale'] > 1.] = 1.
+
+    scales.sort(order='iorig')
 
     if do_save:
         filename = f"{job_name}_Tscales.npy"
