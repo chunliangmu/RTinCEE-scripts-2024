@@ -57,8 +57,11 @@ def mpdf_read(
         failed_count = 0
         for j, T_scale in zip(scales['iorig'], scales['T_scale']):
             #    note: particles can be deleted, so we need to try
-            try: sdf.at[j-1, 'T'] *= T_scale
-            except KeyError: failed_count += 1
+            try:
+                assert sdf.at[j-1, 'iorig'] == j
+                sdf.at[j-1, 'T'] *= T_scale
+            except KeyError:
+                failed_count += 1
         say('note', None, verbose,
             f"Using '{filename}' to scale temperature",
             f"{failed_count} out of {len(scales)} particles not found.")

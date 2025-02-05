@@ -14,17 +14,17 @@ unitsOut['flux_wav'] = (units.erg / units.s / units.cm**2) / units.angstrom
 
 verbose = 6
 
-job_nicknames = ['2md', '4md']#, '4m', '2m_2022']
+job_nicknames = ['4md'] #, '2md']#, '4m', '2m_2022']
 xyzs_list  = ['xyz']#, 'xzy', 'yzx'
 no_xy=(256, 256)
 no_xy_txt = 'x'.join([f'{i}' for i in no_xy])
-output_dir = f'../fig/20240222_LCGen/{no_xy_txt}/'
+output_dir = f'../fig/20240222_LCGen/{no_xy_txt}/test_'
 verbose_loop = 0
 
 
 # temp: ***REMOVE BELOW LINES BEFORE FULL RUN!!!***
 for n in job_nicknames:
-    JOB_PROFILES_DICT[n]['file_indexes'] = np.arange(0, 4800+1, 400) #[0]
+    JOB_PROFILES_DICT[n]['file_indexes'] = [0]#[0, 80, 160, 240, 320, 400, 15600, 17600]#np.arange(0, 4800+1, 400) #[0]
 
 # at t=0... (only used when use_Tscales=True)
 # numbers from Gonzalez-2024-1
@@ -44,7 +44,7 @@ Rs_ph_mesa = {    # from Gonzalez-2024-1
 Rs_ph_init = {  # Set to make initial luminosity close to mesa value
                 #   obtained by iterating Rs_ph_init at t=0 until L ~ L_mesa
     '2md': 359 * units.Rsun,
-    '4md': 401 * units.Rsun,
+    '4md': 464 * units.Rsun,
 }
 
 Ts_ph_init = {
