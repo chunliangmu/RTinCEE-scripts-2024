@@ -7,13 +7,57 @@ Shared helper functions
 
 # imports and internal settings
 import numpy as np
+from numpy import typing as npt
 from numpy import pi
 from astropy import units
 from astropy import constants as const
 from clmuphantomlib.log import is_verbose, say
 from clmuphantomlib import MyPhantomDataFrames, get_eos, get_eos_opacity
 from clmuphantomlib.eos   import EoS_MESA_opacity
-from clmuphantomlib.units_util import get_val_in_unit
+from clmuphantomlib.units_util import get_val_in_unit, get_units_field_name
+
+
+
+# - constants -
+
+
+_UNITS_OUT: dict[str, units.Unit] = {
+    'time': units.yr,
+    'energy': units.erg, #units.Lsun*units.yr,
+    'linearMomentum': None,
+    'angularMomentum': None,
+    'mass': units.Msun,
+    'temp': units.K,
+}
+
+_DTYPE_LUIS_2MD = [
+    (('01        time', 'time'      ), np.float64),
+    (('02        ekin', 'E_kin'     ), np.float64),
+    (('03      etherm', 'E_hea'     ), np.float64),
+    (('04        emag', 'E_mag'     ), np.float64),
+    (('05        epot', 'E_pot'     ), np.float64),
+    (('06        etot', 'E_tot'     ), np.float64),
+    (('07        erad', 'E_rad'     ), np.float64),
+    (('08      totmom', 'p_tot'     ), np.float64),
+    (('09      angtot', 'l_tot'     ), np.float64),
+    (('10     rho max', 'rho_max'   ), np.float64),
+    (('11     rho ave', 'rho_ave'   ), np.float64),
+    (('12          dt', 'dt'        ), np.float64),
+    (('13   totentrop', 'totentrop' ), np.float64),
+    (('14     rmsmach', 'rmsmach'   ), np.float64),
+    (('15        vrms', 'vrms'      ), np.float64),
+    (('16        xcom', 'xcom'      ), np.float64),
+    (('17        ycom', 'ycom'      ), np.float64),
+    (('18        zcom', 'zcom'      ), np.float64),
+    (('19   alpha max', 'alpha_max' ), np.float64),
+    (('20    temp max', 'T_max'     ), np.float64),
+    (('21    temp ave', 'T_ave'     ), np.float64),
+    (('22    temp min', 'T_min'     ), np.float64),
+]
+
+
+
+# --- mpdf reading ---
 
 
 def mpdf_read(
@@ -154,3 +198,158 @@ def gen_Tscales(
     )
 
     return scales
+
+
+
+# --- .ev files reading ---
+
+
+def _get_dtype_code_from_header(
+    txt: str,
+    sep: str = "]   [",
+    num_len: int = 2,
+    do_print:bool=True,
+) -> str:
+    """Translate .ev file header into numpy dtype
+    
+    e.g. something from
+    
+    txt="[01        time]   [02        ekin]   [03      etherm]   [04        emag]   [05        epot]   [06        etot]   [07        erad]   [08      totmom]   [09      angtot]"
+    
+    into
+
+    ans="(('01        time', 'time'   ), np.float64),
+    (('02        ekin', 'ekin'   ), np.float64),
+    (('03      etherm', 'etherm' ), np.float64),
+    (('04        emag', 'emag'   ), np.float64),
+    (('05        epot', 'epot'   ), np.float64),
+    (('06        etot', 'etot'   ), np.float64),
+    (('07        erad', 'erad'   ), np.float64),
+    (('08      totmom', 'totmom' ), np.float64),
+    (('09      angtot', 'angtot' ), np.float64),"
+
+    num_len is the length of the numbers ('2' -> 1, '02' -> 2, '002' -> 3)
+    
+    """
+    txt_list = txt.split(sep)
+    txt_list[ 0] = txt_list[ 0].split("[")[-1]
+    txt_list[-1] = txt_list[-1].split("]")[ 0]
+
+    names = ['_'.join(entry[num_len:].strip().split(' ')) for entry in txt_list]
+    names_maxlen = np.max([len(name) for name in names])
+
+    ans_list = [
+
+        f"(('{entry}', '{name}' {' '*(names_maxlen-len(name))}), np.float64),"
+        for entry, name in zip(txt_list, names)
+    ]
+
+    ans = '\n'.join(ans_list)
+    if do_print: print(ans)
+
+    return ans
+
+
+
+def pa_read_energy(
+    filepath,
+    units_in : None | dict[str, units.Unit] = None,
+    units_out: dict[str, units.Unit] = _UNITS_OUT.copy(),
+) -> tuple[npt.NDArray, dict[str, npt.NDArray|units.Quantity]]:
+    """Read phantom analysis data - CE - energy.
+    
+    units_out is only used if units_in is not None
+
+    Example usage:
+        _, d = pa_read_energy(filepath_ev, units_in=mpdf.units)
+    """
+    data = np.genfromtxt(filepath, dtype=[
+        ((' 1         time', 'time'),  np.float64),
+        ((' 2total energy ', 'E_tot'), np.float64),
+        ((' 3  pot energy ', 'E_pot'), np.float64),
+        ((' 4  kin energy ', 'E_kin'), np.float64),
+        ((' 5therm energy ', 'E_hea'), np.float64),
+        ((' 6    sink pot ', 'E_pot_sink'), np.float64),    # "does not include sink-gas potential energy"
+        ((' 7    sink kin ', 'E_kin_sink'), np.float64),
+        ((' 8    sink orb ', 'E_orb_sink'), np.float64),    # "sink kin + sink pot"
+        ((' 9    comp orb ', 'E_orb_comp'), np.float64),
+        (('10     env pot ', 'E_pot_env' ), np.float64),
+        (('11  env energy ', 'E__env'), np.float64),
+        (('12   bound kin ', 'E_kin_bound'), np.float64),
+        (('13 unbound kin ', 'E_kin_unbound'), np.float64),
+        (('14  bound mass ', 'm_bound'), np.float64),
+        (('15unbound mass ', 'm_unbound'), np.float64),
+        (('16     p-p pot ', 'E_pot_pp'), np.float64),
+        (('17     p-s pot ', 'E_pot_ps'), np.float64),
+        (('18 tot ang mom ', 'l_tot'), np.float64),
+        (('19   b ang mom ', 'l_bound'), np.float64),
+        (('20  ub ang mom ', 'l_unbound'), np.float64),
+        (('21 orb ang mom ', 'l_orb'), np.float64),
+        (('22  gas energy ', 'E__gas'), np.float64),
+        (('23    fallback ', 'm_fallback'), np.float64),
+        (('24fallback mom ', 'l_fallback'), np.float64),
+    ])
+
+    # the following has the same units per entry
+    grp_by_units: dict[str, npt.NDArray|units.Quantity] = {
+        't': data[['time']],
+        'E': data[[    # having the same energy unit
+            'E_tot', 'E_pot', 'E_kin', 'E_hea',
+            'E_pot_sink', 'E_kin_sink', 'E_orb_sink', 'E_orb_comp', 'E_pot_env',
+            'E__env', 'E_kin_bound', 'E_kin_unbound','E_pot_pp', 'E_pot_ps', 'E__gas']],
+        'l': data[[    # angularMomentum
+            'l_tot', 'l_bound', 'l_unbound', 'l_orb', 'l_fallback']],
+        'm': data[[    # mass
+            'm_bound', 'm_unbound', 'm_fallback']],
+    }
+
+    for label in grp_by_units.keys():
+        field = get_units_field_name(label)
+        if units_in  is not None and field in units_in  and units_in[field]  is not None:
+            grp_by_units[label] *= units_in[field]
+        if units_out is not None and field in units_out and units_out[field] is not None:
+            grp_by_units[label] = grp_by_units[label].to(units_out[field])
+    
+    return data, grp_by_units
+
+
+
+def pa_read_ev(
+    filepath,
+    dtype : npt.DTypeLike = _DTYPE_LUIS_2MD,
+    grp_by_units_dict: None | dict[str, list[str]] = {
+        't': ['time'],
+        'E': [    # having the same energy unit
+            'E_kin', 'E_hea',  'E_mag', 'E_pot', 'E_tot', 'E_rad',],
+        'p': [    # Momentum
+            'p_tot'],
+        'l': [    # momentum
+            'l_tot',],
+        'T': [    # Temperature
+            'T_max', 'T_ave', 'T_min',],
+    },
+    units_in : None | dict[str, units.Unit] = None,
+    units_out: dict[str, units.Unit] = _UNITS_OUT.copy(),
+) -> tuple[npt.NDArray, dict[str, npt.NDArray|units.Quantity]]:
+    """Read phantom ev.
+    
+    units_out is only used if units_in is not None
+
+    Example usage:
+        _, d = pa_read_energy(filepath_ev, units_in=mpdf.units)
+    """
+    data = np.genfromtxt(filepath, dtype=dtype)
+
+    # the following has the same units per entry
+    grp_by_units: dict[str, npt.NDArray|units.Quantity] = {
+        k: data[v] for k, v in grp_by_units_dict.items()
+    }
+
+    for label in grp_by_units.keys():
+        field = get_units_field_name(label)
+        if units_in  is not None and field in units_in  and units_in[field]  is not None:
+            grp_by_units[label] *= units_in[field]
+            if units_out is not None and field in units_out and units_out[field] is not None:
+                grp_by_units[label] = grp_by_units[label].to(units_out[field])
+    
+    return data, grp_by_units
