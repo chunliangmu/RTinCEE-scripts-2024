@@ -72,7 +72,7 @@ def mpdf_read(
     kappa_tol : units.Quantity = 1e-7*(units.cm**2/units.g),
     T_cond_oxy: units.Quantity = 1450 * units.K,
     do_extrap: bool = False,
-    use_Tscales: bool = False,
+    use_Tscales: None|str = None,
     verbose: int = 3,
 ) -> MyPhantomDataFrames:
     """Read the dump files and get T and kappa,
@@ -94,12 +94,15 @@ def mpdf_read(
     mpdf.data['gas']['T'    ] = mpdf.data['gas'][temp_key]
     if use_Tscales:
         # apply the temperature scales we obtained earilier
-        filename = f"{job_name}_Tscales.npy"
+        filename = f"{job_name}_T{use_Tscales}.npy"
         scales = np.load(filename)
         # loop over iorig to make sure indexes mismatch doesn't happen
+        # delete negative Tscales
+        inds_del = scales['T_scale'] < 0
+        mpdf.data['gas'].drop([j-1 for j in scales['iorig'][inds_del]], inplace=True, errors='ignore')
         sdf = mpdf.data['gas']
         failed_count = 0
-        for j, T_scale in zip(scales['iorig'], scales['T_scale']):
+        for j, T_scale in zip(scales['iorig'][~inds_del], scales['T_scale'][~inds_del]):
             #    note: particles can be deleted, so we need to try
             try:
                 assert sdf.at[j-1, 'iorig'] == j
@@ -152,6 +155,7 @@ def gen_Tscales(
     job_name: str,
     T_ph : units.Quantity,
     R_ph : units.Quantity,
+    method : str  = 'scale',
     do_save: bool = True,
     params : dict = {'X':0.7, 'Z':0.0},
     verbose: int = 3,
@@ -164,6 +168,8 @@ def gen_Tscales(
     so we can see how much the effect of the instable init
     of MESA -> Phantom dump can be.
 
+    method: {'scale', 'cut', 'delete'}
+
     ---------------------------------------------------------------------------
     """
     mpdf = mpdf_read(
@@ -171,7 +177,7 @@ def gen_Tscales(
         calc_params=['R1'], verbose=verbose)
 
     # particle indexes
-    inds = mpdf.get_val('R1') + mpdf.get_val('h') > R_ph
+    inds = mpdf.get_val('R1') + 2*mpdf.get_val('h') > R_ph
     scales = np.zeros(
         np.count_nonzero(inds),
         dtype=[('iorig', np.int64), ('T_scale', np.float64)])
@@ -183,10 +189,16 @@ def gen_Tscales(
     # scale down only, do not heat the particles
     scales['T_scale'][scales['T_scale'] > 1.] = 1.
 
+    if method == 'cut':
+        inds_outer = mpdf.get_val('R1')[inds] - mpdf.get_val('h')[inds] > R_ph
+        scales['T_scale'][inds_outer] = -1.
+    elif method == 'delete':
+        scales['T_scale'] = -1.
+
     scales.sort(order='iorig')
 
     if do_save:
-        filename = f"{job_name}_Tscales.npy"
+        filename = f"{job_name}_T{method}.npy"
         say('note', None, verbose, f"Saving to {filename}")
         with open(filename, 'wb') as fp:
             np.save(fp, scales)
