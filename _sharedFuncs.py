@@ -111,7 +111,8 @@ def mpdf_read(
                 failed_count += 1
         say('note', None, verbose,
             f"Using '{filename}' to scale temperature",
-            f"{failed_count} out of {len(scales)} particles not found.")
+            f"out of {len(scales)} particles selected, {np.count_nonzero(inds_del)} are to be ignored in post-processing,"
+            f"{failed_count} out of the rest {len(scales) - np.count_nonzero(inds_del)} particles not found.")
         
     if 'kappa' in mpdf.data['gas'].keys():
         unit_opacity = units.cm**2/units.g    # opacity units in original phantom dumpfiles
@@ -189,11 +190,12 @@ def gen_Tscales(
     # scale down only, do not heat the particles
     scales['T_scale'][scales['T_scale'] > 1.] = 1.
 
+    inds_outer = mpdf.get_val('R1')[inds] - mpdf.get_val('h')[inds] > R_ph
     if method == 'cut':
-        inds_outer = mpdf.get_val('R1')[inds] - mpdf.get_val('h')[inds] > R_ph
         scales['T_scale'][inds_outer] = -1.
     elif method == 'delete':
-        scales['T_scale'] = -1.
+        scales['T_scale'][~inds_outer] = 1.
+        scales['T_scale'][inds_outer] = -1.
 
     scales.sort(order='iorig')
 
@@ -207,6 +209,8 @@ def gen_Tscales(
         f"Scaling {len(scales)} particles out of {len(mpdf.data['gas'])}",
         f"\t({len(scales) / len(mpdf.data['gas']) * 100:.2f}%)",
         f"{min(scales['T_scale']) = :5.3f}    {max(scales['T_scale']) = :5.3f}",
+        f"\tDeleting {np.count_nonzero(scales['T_scale'] == -1.)} particles;",
+        f"\tLeaving {np.count_nonzero(scales['T_scale'] == 1.)} particles untouched.",
     )
 
     return scales
