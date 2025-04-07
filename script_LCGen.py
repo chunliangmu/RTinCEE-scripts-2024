@@ -3380,7 +3380,7 @@ if __name__ == '__main__' and not do_debug:
         for ifile, file_index in enumerate(file_indexes):
             # init
     
-            mpdf = mpdf_read(job_name, file_index, eos_opacity, reset_xyz_by='R1', use_Tscales=use_Tscales, verbose=1)
+            mpdf = mpdf_read(job_name, file_index, eos_opacity, reset_xyz_by='R1', use_Tscales=use_Tscales, verbose=verbose)
             mpdf.calc_sdf_params(['R1'])
             sdf  = mpdf.data['gas']
             # kernel = sdf.kernel
