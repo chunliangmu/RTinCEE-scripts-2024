@@ -37,6 +37,36 @@ PHOTOSPHERE_TAU = 2./3. #np.log(2)
 # script input parameters
 JOB_PROFILES_LIST = (
     {
+        'raw_dir' : '../raw/clmu_2mdnr/',
+        'file_prefix': '2mdnr', # nr means no-relax
+        'file_indexes': np.array([0]),
+        'plot_title_suffix': f" for 1.7{Msun_str} star without full relaxation",
+        'ieos': 10,
+        'params': {
+            'X' : 0.691,
+            'Z' : 0.021,
+            'mu': 2.381,
+        },
+        'name': f"NoRelax 1.7{Msun_str}",
+        'nickname': '2mdnr',
+        'color': 'blue',
+    },
+    {
+        'raw_dir' : '../raw/clmu_2mdnrs/',
+        'file_prefix': '2mdnrs', # s for surface
+        'file_indexes': np.arange(10),
+        'plot_title_suffix': f" for 1.7{Msun_str} star without full relaxation, with companion star at the donor surface",
+        'ieos': 10,
+        'params': {
+            'X' : 0.691,
+            'Z' : 0.021,
+            'mu': 2.381,
+        },
+        'name': f"NoRelax 1.7{Msun_str}",
+        'nickname': '2mdnrs',
+        'color': 'blue',
+    },
+    {
         'raw_dir' : '../raw/luis_2md/',
         'file_prefix': 'light',
         #'job_name': '../photosphere/luis_2md/light', # deprecated keyword- will still be added automatically later
