@@ -14,16 +14,16 @@ unitsOut['flux_wav'] = (units.erg / units.s / units.cm**2) / units.angstrom
 
 verbose = 6
 
-job_nicknames = ['2md']#, '4m', '2m_2022', '2md']
+job_nicknames = ['2mdnr']#, '2md', '4m', '2m_2022', '2md']
 xyzs_list  = ['xyz', 'xzy', 'yzx']
-no_xy=(16, 16)  #(256, 256)
+no_xy=(64, 64)  #(256, 256)
 no_xy_txt = 'x'.join([f'{i}' for i in no_xy])
 output_dir = f'../fig/20240222_LCGen/{no_xy_txt}/'
 verbose_loop = 0
 
 # at t=0... (only used when use_Tscales=True)
 # numbers from Gonzalez-2024-1
-use_Tscales : None|str = None #'scale', 'cut', 'delete'
+use_Tscales : None|str = 'scale' #None 'scale', 'cut', 'delete'
 if use_Tscales: interm_dir += f'T{use_Tscales}_' #'Tscaled_'
 Ls_mesa = {    # from Gonzalez-2024-1
     '2md': 5180 * units.Lsun,
@@ -31,6 +31,7 @@ Ls_mesa = {    # from Gonzalez-2024-1
 }
 
 Rs_ph_mesa = {    # from Gonzalez-2024-1
+    '2mdnr': 260 * units.Rsun,
     '2md': 260 * units.Rsun,
     '4md': 330 * units.Rsun,
 }
@@ -54,6 +55,7 @@ Ts_ph_init = {
     n: ((Ls_mesa[n] / (4*pi*Rs_ph_init[n]**2 * const.sigma_sb))**(1/4)).to(units.K)
     for n in Ls_mesa.keys()
 }
+Ts_ph_init['2mdnr'] = 3227*units.K
 
 # - SED settings -
 # freq: minimum range 1e9~1e20 Hz (covering microwave to x-ray)
