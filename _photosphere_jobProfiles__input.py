@@ -85,7 +85,7 @@ JOB_PROFILES_LIST = (
         'raw_dir' : '../raw/clmu_2mdnrt0e1/',
         'file_prefix': '2mdnrt0e1', # t=0, exp 1
         'file_indexes': np.array([0]),
-        'plot_title_suffix': f" for 1.7{Msun_str} star without full relaxation at t=0 with npart=10976736",
+        'plot_title_suffix': f" for 1.7{Msun_str} star without full relaxation res x8 (npart=11M)",
         'ieos': 10,
         'params': {
             'X' : 0.691,
@@ -100,7 +100,7 @@ JOB_PROFILES_LIST = (
         'raw_dir' : '../raw/clmu_2mdnrt0e2/',
         'file_prefix': '2mdnrt0e2', # t=0, exp 2
         'file_indexes': np.array([0]),
-        'plot_title_suffix': f" for 1.7{Msun_str} star without full relaxation at t=0 with npart=87813888",
+        'plot_title_suffix': f" for 1.7{Msun_str} star without full relaxation res x64 (npart=88M)",
         'ieos': 10,
         'params': {
             'X' : 0.691,
@@ -109,6 +109,21 @@ JOB_PROFILES_LIST = (
         },
         'name': f"NoRelax 1.7{Msun_str} x64 npart",
         'nickname': '2mdnrt0e2',
+        'color': 'blue',
+    },
+    {
+        'raw_dir' : '../raw/clmu_2mdnrt0e2n/',
+        'file_prefix': '2mdnrt0e2n', # t=0, exp 2, no relax-o-matic
+        'file_indexes': np.array([0]),
+        'plot_title_suffix': f" for 1.7{Msun_str} star without relaxation res x64 (npart=88M)",
+        'ieos': 10,
+        'params': {
+            'X' : 0.691,
+            'Z' : 0.021,
+            'mu': 2.381,
+        },
+        'name': f"NoRelax 1.7{Msun_str} x64 npart",
+        'nickname': '2mdnrt0e2n',
         'color': 'blue',
     },
     {

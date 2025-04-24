@@ -415,9 +415,9 @@ def read_mesa_data(
 
 
 use_Tscales = ''     #'', 'scale', 'cut', 'delete'
-job_nickname= '2mdnrt0e2'
+job_nickname= '2mdnr'
 # xlim = (1., 1e3)
-xlim = (252, 268)
+xlim = (252, 270)
 
 
 label=f'phantom- ' + (f'T{use_Tscales}' if use_Tscales else 'normal')
@@ -456,7 +456,9 @@ for what in ['T', 'rho', 'kappa']:
     else: mask = np.logical_and(xlim[0] < xs, xs < xlim[1])
     
     ax.semilogy(xs[mask], ys[mask], '-', label='mesa', linewidth=4, alpha=0.8)
-    # if what=='T': ax.set_ylim(1e3, 3e6)
+    if   what=='T':     ax.set_ylim(2e3, 9e3)
+    elif what=='rho':   ax.set_ylim(8e-10, 5e-9)
+    elif what=='kappa': ax.set_ylim(5e-4, 8.0)
     
     ax.axvline(x=stuff_mesa['R1'][0].value, color='grey', linestyle='dashed')
     ax.legend(loc='lower left')
