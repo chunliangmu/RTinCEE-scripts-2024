@@ -62,8 +62,53 @@ JOB_PROFILES_LIST = (
             'Z' : 0.021,
             'mu': 2.381,
         },
-        'name': f"NoRelax 1.7{Msun_str}",
+        'name': f"NoRelax 1.7{Msun_str} Surface",
         'nickname': '2mdnrs',
+        'color': 'blue',
+    },
+    {
+        'raw_dir' : '../raw/clmu_2mdnrh/',
+        'file_prefix': '2mdnrh', # h for halfway
+        'file_indexes': np.arange(10),
+        'plot_title_suffix': f" for 1.7{Msun_str} star without full relaxation, with companion star halfway between donor surface and RLOF",
+        'ieos': 10,
+        'params': {
+            'X' : 0.691,
+            'Z' : 0.021,
+            'mu': 2.381,
+        },
+        'name': f"NoRelax 1.7{Msun_str} Halfway",
+        'nickname': '2mdnrh',
+        'color': 'blue',
+    },
+    {
+        'raw_dir' : '../raw/clmu_2mdnrt0e1/',
+        'file_prefix': '2mdnrt0e1', # t=0, exp 1
+        'file_indexes': np.array([0]),
+        'plot_title_suffix': f" for 1.7{Msun_str} star without full relaxation at t=0 with npart=10976736",
+        'ieos': 10,
+        'params': {
+            'X' : 0.691,
+            'Z' : 0.021,
+            'mu': 2.381,
+        },
+        'name': f"NoRelax 1.7{Msun_str} x8 npart",
+        'nickname': '2mdnrt0e1',
+        'color': 'blue',
+    },
+    {
+        'raw_dir' : '../raw/clmu_2mdnrt0e2/',
+        'file_prefix': '2mdnrt0e2', # t=0, exp 2
+        'file_indexes': np.array([0]),
+        'plot_title_suffix': f" for 1.7{Msun_str} star without full relaxation at t=0 with npart=87813888",
+        'ieos': 10,
+        'params': {
+            'X' : 0.691,
+            'Z' : 0.021,
+            'mu': 2.381,
+        },
+        'name': f"NoRelax 1.7{Msun_str} x64 npart",
+        'nickname': '2mdnrt0e2',
         'color': 'blue',
     },
     {
