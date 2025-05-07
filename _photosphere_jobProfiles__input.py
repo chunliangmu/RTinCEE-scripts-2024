@@ -37,6 +37,21 @@ PHOTOSPHERE_TAU = 2./3. #np.log(2)
 # script input parameters
 JOB_PROFILES_LIST = (
     {
+        'raw_dir' : '../raw/clmu_sol/',
+        'file_prefix': 'sol',
+        'file_indexes': np.array([0]),
+        'plot_title_suffix': f" for Sun without full relaxation",
+        'ieos': 10,
+        'params': {
+            'X' : 0.691,
+            'Z' : 0.021,
+            'mu': 0.5988,
+        },
+        'name': f"NoRelax Sun",
+        'nickname': 'sol',
+        'color': 'blue',
+    },
+    {
         'raw_dir' : '../raw/clmu_2mdnr/',
         'file_prefix': '2mdnr', # nr means no-relax
         'file_indexes': np.array([0]),

@@ -344,6 +344,7 @@ def plot_stuff(
     label='',
     ylim = None,
 ):
+    plt.close()
     fig, ax = plt.subplots(figsize=(10, 8))
     xs, ys = stuff_dict[x_name], stuff_dict[y_name]
     if isinstance(xs, units.Quantity): xs = xs.value
@@ -384,11 +385,14 @@ def read_mesa_data(
         'R1': (mesa_data['R1_cm'] * units.cm).to(units.Rsun),
         'T' : mesa_data['temp'] * units.K,
         'lum' : mesa_data['lum'] * units.Lsun,
-        'rho' : mesa_data['rho'] * (units.g/units.cm**3)
+        'rho' : mesa_data['rho'] * (units.g/units.cm**3),
     }
     del mesa_data 
     stuff_mesa['L'    ] = (4 * pi * stuff_mesa['R1']**2 * (const.sigma_sb * stuff_mesa['T']**4)).to(units.Lsun)
     stuff_mesa['kappa'] = eos_opacity.get_kappa(rho=stuff_mesa['rho'], T=stuff_mesa['T'])
+    stuff_mesa['dR1'] = -np.diff(stuff_mesa['R1'], append=0*units.Rsun)
+    stuff_mesa['dtau'] = stuff_mesa['kappa'] * stuff_mesa['rho'] * stuff_mesa['dR1']
+    stuff_mesa['tau'] = stuff_mesa['dtau'].cumsum()
     #stuff_mesa['wtf'  ] = (4 * pi * stuff_mesa['R1']**2 * (const.sigma_sb * stuff_mesa['T'].value**2.5 * units.K**4)).to(units.Lsun)
     # below should be one, but it is not. Not sure why
     L_0 = stuff_mesa['lum'][0]
@@ -404,8 +408,6 @@ def read_mesa_data(
         stuff_mesa['R1'].cgs**(-2) - integrate.cumulative_trapezoid(
             (stuff_mesa['kappa'] * stuff_mesa['rho'] / stuff_mesa['R1']**2).cgs, stuff_mesa['R1'].cgs, initial=0
         )*units.cm**(-2))).cgs
-    
-    stuff_mesa['R1'][0].value
     return stuff_mesa
 
 
@@ -415,9 +417,9 @@ def read_mesa_data(
 
 
 use_Tscales = ''     #'', 'scale', 'cut', 'delete'
-job_nickname= '2mdnr'
+job_nickname= '2mdnrt0e2' #'t0e1'
 # xlim = (1., 1e3)
-xlim = (252, 270)
+xlim = (252, 268)
 
 
 label=f'phantom- ' + (f'T{use_Tscales}' if use_Tscales else 'normal')
@@ -432,6 +434,7 @@ stuff_mesa = read_mesa_data(eos_opacity)
 mpdf = mpdf_read(job_name, 0, eos_opacity, reset_xyz_by='R1', use_Tscales=use_Tscales)
 mpdf.calc_sdf_params(['R1'])
 sdf  = mpdf.data['gas']
+sdf['R1_bin'] = np.floor(sdf['R1']*10)/10
 ray = mupl.get_rays(mpdf.data['sink'][['x', 'y', 'z']].iloc[0], np.array([0., 0., 1.]))
 srcfuncs = mpdf.const['sigma_sb'] * sdf['T']**4 #/ (4 * pi)
 
@@ -441,8 +444,38 @@ stuff['R1'   ] = mpdf.get_val('R1').to(units.Rsun)
 stuff['T'    ] = mpdf.get_val('T').to(units.K)
 stuff['L'    ] = (4 * pi * stuff['R1']**2 * (const.sigma_sb * stuff['T']**4)).to(units.Lsun)
 stuff['rho'  ] = mpdf.get_val('rho').cgs
+stuff['tau'  ] = np.ones(len(sdf))*PHOTOSPHERE_TAU * units.dimensionless_unscaled
 
-for what in ['T', 'rho', 'kappa']:
+# rolling summary
+sdf_grpby = sdf.groupby('R1_bin')
+sdf_avg = sdf_grpby.mean()
+sdf_std = sdf_grpby.std()
+sdf_cnt = sdf_grpby.count()['iorig']
+print("Number of bins with less than 8 data points: ", np.count_nonzero(sdf_cnt < 8))
+
+# reconstruct photosphere
+sdf_avg['dR1'] = np.diff(sdf_avg['R1'], prepend=0)
+sdf_std['dR1'] = 0.
+sdf_avg['dtau'] = sdf_avg['kappa'] * sdf_avg['rho'] * sdf_avg['dR1']
+sdf_std['dtau'] = sdf_avg['dtau'] * np.sqrt((sdf_std['kappa'] / sdf_avg['kappa'])**2 + (sdf_std['rho'] / sdf_avg['rho'])**2)
+sdf_avg['tau'] = sdf_avg['dtau'][::-1].cumsum()[::-1]
+sdf_std['tau'] = np.sqrt((sdf_std['dtau']**2)[::-1].cumsum()[::-1])
+
+# get photosphere loc
+ph_inner_layers = np.where(sdf_avg['tau'] >= PHOTOSPHERE_TAU)[0]
+if ph_inner_layers.size:
+    ph_ind = ph_inner_layers[-1]
+    ph_R1 = sdf_avg['R1'].iloc[ph_ind]
+else:
+    ph_ind = len(sdf_avg) - 1
+    ph_R1 = sdf_avg['R1'].iloc[-1] + sdf_avg['dR1'].iloc[-1]
+
+# cleaning up
+sdf_valp = sdf_avg + sdf_std
+sdf_valm = sdf_avg - sdf_std
+
+plt.close('all')
+for what in ['T', 'rho', 'kappa', 'tau']:
     fig, ax, mask = plot_stuff(
         stuff, 'R1', what, mpdf,
         {'plot_title_suffix' : job_nickname + " - phantom vs mesa"},
@@ -453,14 +486,21 @@ for what in ['T', 'rho', 'kappa']:
     if isinstance(xs, units.Quantity): xs = xs.value
     if isinstance(ys, units.Quantity): ys = ys.value
     if xlim is None: mask = np.ones_like(xs, dtype=np.bool_)
-    else: mask = np.logical_and(xlim[0] < xs, xs < xlim[1])
+    else: mask = np.logical_and(xlim[0]*0.99 < xs, xs < xlim[1]*1.01)
+    unit = mpdf.get_val(what).unit if what != 'tau' else units.dimensionless_unscaled
     
     ax.semilogy(xs[mask], ys[mask], '-', label='mesa', linewidth=4, alpha=0.8)
+    ys_sdf = set_as_quantity(sdf_avg[what], unit).cgs.value
+    ax.semilogy(sdf_avg['R1'], ys_sdf, 'o--', label='phantom- aggregate', color='C2', linewidth=4, alpha=0.8)
+    ax.fill_between(sdf_avg['R1'], set_as_quantity(sdf_valm[what], unit).cgs.value, set_as_quantity(sdf_valp[what], unit).cgs.value, color='C2', alpha=0.4)
     if   what=='T':     ax.set_ylim(2e3, 9e3)
     elif what=='rho':   ax.set_ylim(8e-10, 5e-9)
     elif what=='kappa': ax.set_ylim(5e-4, 8.0)
     
-    ax.axvline(x=stuff_mesa['R1'][0].value, color='grey', linestyle='dashed')
+    ax.axvline(x=stuff_mesa['R1'][0].value, color='orange', linestyle='dashed')
+    ax.axvline(x=ph_R1, color='grey', linestyle='dashed')
+    if what in {'T'}:
+        ax.text(ph_R1, ys_sdf[ph_ind]*1.1, f"${what}_{{ph}}$ = {ys_sdf[ph_ind]:.0f} {unit.cgs.to_string('latex_inline')}")
     ax.legend(loc='lower left')
     outfilename_noext = f"{output_dir}phantom-vs-mesa_{job_nickname}_{what}-R1"
     if use_Tscales: outfilename_noext += f".T{use_Tscales}"
@@ -469,7 +509,6 @@ for what in ['T', 'rho', 'kappa']:
         outfilename = f"{outfilename_noext}{ext}"
         fig.savefig(f"{outfilename}")
         print(f"Saved to {outfilename}")
-
 
 
 
