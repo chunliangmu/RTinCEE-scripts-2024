@@ -14,7 +14,7 @@ unitsOut['flux_wav'] = (units.erg / units.s / units.cm**2) / units.angstrom
 
 verbose = 6
 
-job_nicknames = ['2mdnr']#, '2md', '4m', '2m_2022', '2md']
+job_nicknames = ['2md']#, '2md', '4m', '2m_2022', '2md']
 xyzs_list  = ['xyz', 'xzy', 'yzx']
 no_xy=(64, 64)  #(256, 256)
 no_xy_txt = 'x'.join([f'{i}' for i in no_xy])
@@ -23,7 +23,7 @@ verbose_loop = 0
 
 # at t=0... (only used when use_Tscales=True)
 # numbers from Gonzalez-2024-1
-use_Tscales : None|str = 'scale' #None 'scale', 'cut', 'delete'
+use_Tscales : None|str = None #None 'scale', 'cut', 'delete'
 if use_Tscales: interm_dir += f'T{use_Tscales}_' #'Tscaled_'
 Ls_mesa = {    # from Gonzalez-2024-1
     '2md': 5180 * units.Lsun,
