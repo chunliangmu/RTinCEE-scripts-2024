@@ -2142,7 +2142,7 @@ def integrate_along_rays_gridxy(
     if srcfuncs_err is None:
         # calc error of source function now
         sdf['srcfunc'] = srcfuncs
-        srcfuncs_grad_used = get_sph_gradient(
+        srcfuncs_grad_used, nneighs_z_used = get_sph_gradient(
             sdf,
             val_names   ='srcfunc',
             locs        = pts_ordered[     jused],
@@ -2154,21 +2154,36 @@ def integrate_along_rays_gridxy(
             ndim        = ndim,
             xyzs_names_list=xyzs_names_list,
             parallel    = parallel,
+            return_nneighs_z = True,
             verbose     = verbose,
-        )[:, :, 0]    # get_sph_gradient returns a (nlocs, ndim, nvals)-shaped np.ndarray
+        )
+        srcfuncs_grad_used = srcfuncs_grad_used[:, :, 0]    # get_sph_gradient returns a (nlocs, ndim, nvals)-shaped np.ndarray
+        # srcfuncs_err_used: (nlocs,)-shaped np.ndarray
         srcfuncs_err_used = np.sum(srcfuncs_grad_used**2, axis=1)**0.5 * hs_ordered[jused] * err_h
+        # put a floor on error range if particle position is poorly resolved
+        #    pres_used = poorly_resolved_used
+        #    *** this bit only works if ray is pointing towards +z ***
+        pres_used = nneighs_z_used[:, 0] < 1
+        srcfuncs_err_used = np.where(
+            np.logical_and(pres_used, srcfuncs[jused] > srcfuncs_err_used),
+            srcfuncs[jused],    # no need for abs since srcfuncs are already positive
+            srcfuncs_err_used,
+        )
     else:
         srcfuncs_err_used = srcfuncs_err[pts_order_used]
+        pres_used = np.zeros(len(jused), dtype=bool)
 
-    lum_err = 4 * pi * ((srcfuncs_err_used * jfact_used)**2).sum()**0.5
-    
+    dLs_used = srcfuncs_err_used * jfact_used
+    lum_err = 4 * pi * ((dLs_used[~pres_used]**2).sum() + dLs_used[pres_used].sum()**2)**0.5
 
     if is_verbose(verbose, 'info'):
         nused = len(jfact_used)
         say('info', None, verbose,
             f"{nused} particles actually participated calculation",
             f"({int(nused/npart*10000)/100.}% of all particles,",
-            f"average {int(nused/nray*100)/100.} per ray.)", sep=' ')
+            f"average {int(nused/nray*100)/100.} per ray.)\n",
+            f"Among which, {np.count_nonzero(pres_used)} are poorly resolved (no neighbour with higher z))\n",
+            sep=' ')
 
     
     return lum, lum_err, rads, pones, ptaus, indes, contr, pts_order_used, jfact_used, estis
@@ -3335,7 +3350,7 @@ if do_debug and __name__ == '__main__':
 # .
 # 
 
-# In[ ]:
+# In[43]:
 
 
 if __name__ == '__main__' and not do_debug:
@@ -3645,4 +3660,10 @@ if __name__ == '__main__' and not do_debug:
                 
     plt.close('all')
     mupl.hdf5_dump(comb, f"{interm_dir}lcgen.{no_xy_txt}.hdf5.gz", metadata)
+
+
+# In[ ]:
+
+
+
 
