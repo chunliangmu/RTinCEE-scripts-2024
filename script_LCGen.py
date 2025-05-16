@@ -2495,7 +2495,7 @@ def integrate_along_rays_gridxy(
         # put a floor on error range if particle position is poorly resolved
         #    pres_used = poorly_resolved_used
         #    *** this bit only works if ray is pointing towards +z ***
-        pres_used = nneighs_z_used[:, 0] < 10
+        pres_used = nneighs_z_used[:, 0] < 8
         srcfuncs_err_used = np.where(
             np.logical_and(pres_used, srcfuncs_ordered[jused] > srcfuncs_err_used),
             srcfuncs_ordered[jused],    # no need for abs since srcfuncs are already positive
@@ -2514,7 +2514,7 @@ def integrate_along_rays_gridxy(
             f"{nused} particles actually participated calculation",
             f"({int(nused/npart*10000)/100.}% of all particles,",
             f"average {int(nused/nray*100)/100.} per ray.)\n",
-            f"Among which, {np.count_nonzero(pres_used)} are poorly resolved (less than 10 neighbours with higher z))\n",
+            f"Among which, {np.count_nonzero(pres_used)} are poorly resolved (less than 8 neighbours with higher z))\n",
             sep=' ')
 
     
