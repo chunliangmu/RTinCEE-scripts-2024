@@ -1999,6 +1999,7 @@ def _integrate_along_rays_gridxy_sub_parallel_olim(
     nsample              : int   = 100,  # no of sample points for integration
 ) -> tuple[
     npt.NDArray[np.float64],    # anses
+    npt.NDArray[np.float64],    # olims
     npt.NDArray[np.float64],    # pones
     npt.NDArray[np.float64],    # ptaus
     npt.NDArray[np.int64  ],    # indes
@@ -2040,6 +2041,9 @@ def _integrate_along_rays_gridxy_sub_parallel_olim(
     anses: (nray,)-shaped np.ndarray[float]
         Radiance (i.e. specific intensities) for each ray.
 
+    olims: (nray,)-shaped np.ndarray[float]
+        Radiance (i.e. specific intensities) for each ray, excluding unresolved surface.
+
     pones: (nray,)-shaped np.ndarray[float]
         <1> for each pixel,
         i.e. same integration of radiance but for a constant 'srcfunc' of '1', for each ray.
@@ -2078,6 +2082,7 @@ def _integrate_along_rays_gridxy_sub_parallel_olim(
     npart = len(srcfuncs_ordered)
     ndim  = pts_ordered.shape[-1]
     anses = np.zeros(nray)
+    olims = np.zeros(nray)
     indes = np.zeros(nray, dtype=np.int64)    # indexes of max contribution particle
     contr = np.zeros(nray)     # relative contribution of the max contribution particle
     # ifact = np.zeros(nray)     # effective xsec for i-th ray  # NOTE: ifact = pones * ray_areas
@@ -2096,7 +2101,8 @@ def _integrate_along_rays_gridxy_sub_parallel_olim(
     # cache calcs
     hrs_ordered = hs_ordered * kernel_rad
 
-    
+    # first surface particle z init value. i.e. location of outmost particle z within one h of the ray
+    z_olim_min = pts_ordered[-1, 2] - np.max(hs_ordered) * kernel_rad
 
     # loop over ray
     for i in prange(nray):
@@ -2142,7 +2148,8 @@ def _integrate_along_rays_gridxy_sub_parallel_olim(
         used_j = 0    # j = used_indexes[used_j]
         tau    = 0.
         rad_est= 0.   # estimation of radiance (i.e. ans)
-        z_olim = pts_ordered[-1, 2] # init first surface particle z. i.e. location of outmost particle z within one h of the ray
+        z_olim = z_olim_min
+        z_olim_kc = 0.    # accumlated kernel_col value
         z_olim_not_found = True
         for j in range(npart):
             x_j = pts_ordered[j, 0]
@@ -2155,15 +2162,18 @@ def _integrate_along_rays_gridxy_sub_parallel_olim(
                 h = hs_ordered[ j]
                 q_xy = ((x_j - ray_x)**2 + (y_j - ray_y)**2)**0.5 / h
                 if q_xy < kernel_rad:
-                    
-                    if q_xy < 1.0 and z_olim_not_found:
-                        z_olim = pts_ordered[j, 2] - hr
-                        z_olim_not_found = False
 
                     # log
                     mkappa_div_h2 = mkappa_div_h2_ordered[j]
                     srcfunc = srcfuncs_ordered[j]
-                    dtau = mkappa_div_h2 * kernel_col(q_xy, ndim)
+                    kc = kernel_col(q_xy, ndim)
+                    dtau = mkappa_div_h2 * kc
+
+                    if z_olim_not_found:
+                        z_olim_kc += kc
+                        if z_olim_kc > 1.0:
+                            z_olim = pts_ordered[j, 2]
+                            z_olim_not_found = False
                     
                     used_indexes[used_j] = j
                     used_dtaus[  used_j] = dtau
@@ -2299,12 +2309,13 @@ def _integrate_along_rays_gridxy_sub_parallel_olim(
             #if tau > tol_tau_base - np.log(ans):
             #    break
             
-        anses[i] = ans_olim
+        anses[i] = ans
+        olims[i] = ans_olim
         indes[i] = ind
         if ans > 0: contr[i] = dfac_max_tmp / fac  # dans_max_tmp / ans
         pones[i] = fac
     
-    return anses, pones, ptaus, indes, contr, jfact, jfact_olims, estis
+    return anses, olims, pones, ptaus, indes, contr, jfact, jfact_olims, estis
 
 
 
@@ -2450,7 +2461,7 @@ def integrate_along_rays_gridxy(
 
     # get used particles indexes
     if parallel:
-        rads, pones, ptaus, indes, contr, jfact, jfact_olims, estis = _integrate_along_rays_gridxy_sub_parallel_olim(
+        rads, olims, pones, ptaus, indes, contr, jfact, jfact_olims, estis = _integrate_along_rays_gridxy_sub_parallel_olim(
             pts_ordered, hs_ordered, mkappa_div_h2_ordered, srcfuncs_ordered,
             rays_xy, ray_areas, kernel_rad, kernel_col, kernel_csz, kernel.w,
             pts_order, rel_tol=rel_tol)
@@ -2464,8 +2475,11 @@ def integrate_along_rays_gridxy(
     
     lum  = 4 * pi * (rads * ray_areas).sum()
     lum2 = 4 * pi * (srcfuncs_ordered[jused] * jfact_used).sum()
+    lum_olim  = 4 * pi * (olims * ray_areas).sum()
+    lum_olim2 = 4 * pi * (srcfuncs_ordered[jused] * jfact_olims_used).sum()
     say('debug', None, verbose,
-        f"{lum = }, {lum2 = }",
+        f"{lum = }, {lum2 = }    (code unit)",
+        f"{lum_olim = }, {lum_olim2 = }    (code unit)",
         f"{rads.shape=}, {ray_areas.shape=}",
         f"{srcfuncs[jused].shape=}, {jfact_used.shape=}",
     )
@@ -2492,21 +2506,24 @@ def integrate_along_rays_gridxy(
         srcfuncs_grad_used = srcfuncs_grad_used[:, :, 0]    # get_sph_gradient returns a (nlocs, ndim, nvals)-shaped np.ndarray
         # srcfuncs_err_used: (nlocs,)-shaped np.ndarray
         srcfuncs_err_used = np.sum(srcfuncs_grad_used**2, axis=1)**0.5 * hs_ordered[jused] * err_h
-        # put a floor on error range if particle position is poorly resolved
-        #    pres_used = poorly_resolved_used
-        #    *** this bit only works if ray is pointing towards +z ***
-        pres_used = nneighs_z_used[:, 0] < 8
-        srcfuncs_err_used = np.where(
-            np.logical_and(pres_used, srcfuncs_ordered[jused] > srcfuncs_err_used),
-            srcfuncs_ordered[jused],    # no need for abs since srcfuncs are already positive
-            srcfuncs_err_used,
-        )
+        # # put a floor on error range if particle position is poorly resolved
+        # #    pres_used = poorly_resolved_used
+        # #    *** this bit only works if ray is pointing towards +z ***
+        # pres_used = nneighs_z_used[:, 0] < 8
+        # srcfuncs_err_used = np.where(
+        #     np.logical_and(pres_used, srcfuncs_ordered[jused] > srcfuncs_err_used),
+        #     srcfuncs_ordered[jused],    # no need for abs since srcfuncs are already positive
+        #     srcfuncs_err_used,
+        # )
     else:
         srcfuncs_err_used = srcfuncs_err[pts_order_used]
-        pres_used = np.zeros(len(jused), dtype=bool)
+        # pres_used = np.zeros(len(jused), dtype=bool)
 
-    dLs_used = srcfuncs_err_used * jfact_used
-    lum_err = 4 * pi * ((dLs_used[~pres_used]**2).sum() + dLs_used[pres_used].sum()**2)**0.5
+    dLs_used = None
+    lum_err = 4 * pi * (
+        ((srcfuncs_err_used * jfact_olims_used)**2).sum()    # uncertainty from normal inside particles
+        + (srcfuncs_ordered[jused] * (jfact_used - jfact_olims_used) ).sum()**2    # uncertainty from outermost particles
+    )**0.5
 
     if is_verbose(verbose, 'info'):
         nused = len(jfact_used)
@@ -2514,11 +2531,12 @@ def integrate_along_rays_gridxy(
             f"{nused} particles actually participated calculation",
             f"({int(nused/npart*10000)/100.}% of all particles,",
             f"average {int(nused/nray*100)/100.} per ray.)\n",
-            f"Among which, {np.count_nonzero(pres_used)} are poorly resolved (less than 8 neighbours with higher z))\n",
+            f"overall resolution {jfact_olims_used.sum() / np.max(jfact_olims_used) = :.1f}",
+            # f"Among which, {np.count_nonzero(pres_used)} are poorly resolved (less than 8 neighbours with higher z))\n",
             sep=' ')
 
     
-    return lum, lum_err, rads, pones, ptaus, indes, contr, pts_order_used, jfact_olims_used, estis
+    return lum_olim, lum_err, olims, pones, ptaus, indes, contr, pts_order_used, jfact_olims_used, estis
 
 
 # ### rays grid generation
@@ -3737,7 +3755,7 @@ if __name__ == '__main__' and not do_debug:
             sdf['srcfunc'] = srcfuncs
 
             with mupl.hdf5_open(
-                f"{interm_dir}{job_nickname}_{file_index:05d}.lcgen.{no_xy_txt}.olim.hdf5",
+                f"{interm_dir}{job_nickname}_{file_index:05d}.lcgen.{no_xy_txt}.hdf5",
                 'a', metadata) as out_interm_grp1:
                 #out_interm_grp1 = mupl.hdf5_subgroup(out_interm_file, f"{file_index:05d}", {})
 
@@ -3958,7 +3976,7 @@ if __name__ == '__main__' and not do_debug:
 
 
         # save data for now
-        with open(f"{interm_dir}lcgen.{no_xy_txt}.olim.json", 'w') as f:
+        with open(f"{interm_dir}lcgen.{no_xy_txt}.json", 'w') as f:
             mupl.json_dump(comb, f, metadata)
 
         
@@ -3991,7 +4009,7 @@ if __name__ == '__main__' and not do_debug:
         #     say('note', None, verbose, f"Fig saved to {outfilename}.")
                 
     plt.close('all')
-    mupl.hdf5_dump(comb, f"{interm_dir}lcgen.{no_xy_txt}.olim.hdf5.gz", metadata)
+    mupl.hdf5_dump(comb, f"{interm_dir}lcgen.{no_xy_txt}.hdf5.gz", metadata)
 
 
 # In[ ]:
