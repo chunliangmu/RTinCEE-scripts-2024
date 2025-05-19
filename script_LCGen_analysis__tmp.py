@@ -117,7 +117,10 @@ NPROCESSES = 1 if cpu_count() is None else max(cpu_count(), 1)
 #   imported from script_input.py file
 
 
-from script_LCGen__input import verbose, verbose_loop, interm_dir, output_dir, unitsOut, SPEC_DIST, PHOTOSPHERE_TAU, JOB_PROFILES_DICT
+from script_LCGen__input import (
+    verbose, verbose_loop, interm_dir, output_dir, unitsOut, SPEC_DIST, PHOTOSPHERE_TAU, JOB_PROFILES_DICT,
+    no_xy, no_xy_txt,
+)
 from _sharedFuncs import mpdf_read, pa_read_energy, pa_read_ev
 
 # remove temp flag
@@ -414,101 +417,105 @@ def read_mesa_data(
 
 
 
+if False:
+
+    # plot mesa
 
 
-use_Tscales = ''     #'', 'scale', 'cut', 'delete'
-job_nickname= '2mdnrt0e2' #'t0e1'
-# xlim = (1., 1e3)
-xlim = (252, 268)
-
-
-label=f'phantom- ' + (f'T{use_Tscales}' if use_Tscales else 'normal')
-# read data
-job_profile = JOB_PROFILES_DICT[job_nickname]
-job_name    = job_profile['job_name']
-params      = job_profile['params']
-eos_opacity = EoS_MESA_opacity(params, settings)
-# reading mesa data
-stuff_mesa = read_mesa_data(eos_opacity)
-# reading phantom data
-mpdf = mpdf_read(job_name, 0, eos_opacity, reset_xyz_by='R1', use_Tscales=use_Tscales)
-mpdf.calc_sdf_params(['R1'])
-sdf  = mpdf.data['gas']
-sdf['R1_bin'] = np.floor(sdf['R1']*10)/10
-ray = mupl.get_rays(mpdf.data['sink'][['x', 'y', 'z']].iloc[0], np.array([0., 0., 1.]))
-srcfuncs = mpdf.const['sigma_sb'] * sdf['T']**4 #/ (4 * pi)
-
-stuff = {}
-stuff['kappa'] = mpdf.get_val('kappa').cgs
-stuff['R1'   ] = mpdf.get_val('R1').to(units.Rsun)
-stuff['T'    ] = mpdf.get_val('T').to(units.K)
-stuff['L'    ] = (4 * pi * stuff['R1']**2 * (const.sigma_sb * stuff['T']**4)).to(units.Lsun)
-stuff['rho'  ] = mpdf.get_val('rho').cgs
-stuff['tau'  ] = np.ones(len(sdf))*PHOTOSPHERE_TAU * units.dimensionless_unscaled
-
-# rolling summary
-sdf_grpby = sdf.groupby('R1_bin')
-sdf_avg = sdf_grpby.mean()
-sdf_std = sdf_grpby.std()
-sdf_cnt = sdf_grpby.count()['iorig']
-print("Number of bins with less than 8 data points: ", np.count_nonzero(sdf_cnt < 8))
-
-# reconstruct photosphere
-sdf_avg['dR1'] = np.diff(sdf_avg['R1'], prepend=0)
-sdf_std['dR1'] = 0.
-sdf_avg['dtau'] = sdf_avg['kappa'] * sdf_avg['rho'] * sdf_avg['dR1']
-sdf_std['dtau'] = sdf_avg['dtau'] * np.sqrt((sdf_std['kappa'] / sdf_avg['kappa'])**2 + (sdf_std['rho'] / sdf_avg['rho'])**2)
-sdf_avg['tau'] = sdf_avg['dtau'][::-1].cumsum()[::-1]
-sdf_std['tau'] = np.sqrt((sdf_std['dtau']**2)[::-1].cumsum()[::-1])
-
-# get photosphere loc
-ph_inner_layers = np.where(sdf_avg['tau'] >= PHOTOSPHERE_TAU)[0]
-if ph_inner_layers.size:
-    ph_ind = ph_inner_layers[-1]
-    ph_R1 = sdf_avg['R1'].iloc[ph_ind]
-else:
-    ph_ind = len(sdf_avg) - 1
-    ph_R1 = sdf_avg['R1'].iloc[-1] + sdf_avg['dR1'].iloc[-1]
-
-# cleaning up
-sdf_valp = sdf_avg + sdf_std
-sdf_valm = sdf_avg - sdf_std
-
-plt.close('all')
-for what in ['T', 'rho', 'kappa', 'tau']:
-    fig, ax, mask = plot_stuff(
-        stuff, 'R1', what, mpdf,
-        {'plot_title_suffix' : job_nickname + " - phantom vs mesa"},
-        xlim=xlim, label=label,
-    )
+    use_Tscales = ''     #'', 'scale', 'cut', 'delete'
+    job_nickname= '2mdnrt0e2' #'t0e1'
+    # xlim = (1., 1e3)
+    xlim = (252, 268)
     
-    xs, ys = stuff_mesa['R1'], stuff_mesa[what]
-    if isinstance(xs, units.Quantity): xs = xs.value
-    if isinstance(ys, units.Quantity): ys = ys.value
-    if xlim is None: mask = np.ones_like(xs, dtype=np.bool_)
-    else: mask = np.logical_and(xlim[0]*0.99 < xs, xs < xlim[1]*1.01)
-    unit = mpdf.get_val(what).unit if what != 'tau' else units.dimensionless_unscaled
     
-    ax.semilogy(xs[mask], ys[mask], '-', label='mesa', linewidth=4, alpha=0.8)
-    ys_sdf = set_as_quantity(sdf_avg[what], unit).cgs.value
-    ax.semilogy(sdf_avg['R1'], ys_sdf, 'o--', label='phantom- aggregate', color='C2', linewidth=4, alpha=0.8)
-    ax.fill_between(sdf_avg['R1'], set_as_quantity(sdf_valm[what], unit).cgs.value, set_as_quantity(sdf_valp[what], unit).cgs.value, color='C2', alpha=0.4)
-    if   what=='T':     ax.set_ylim(2e3, 9e3)
-    elif what=='rho':   ax.set_ylim(8e-10, 5e-9)
-    elif what=='kappa': ax.set_ylim(5e-4, 8.0)
+    label=f'phantom- ' + (f'T{use_Tscales}' if use_Tscales else 'normal')
+    # read data
+    job_profile = JOB_PROFILES_DICT[job_nickname]
+    job_name    = job_profile['job_name']
+    params      = job_profile['params']
+    eos_opacity = EoS_MESA_opacity(params, settings)
+    # reading mesa data
+    stuff_mesa = read_mesa_data(eos_opacity)
+    # reading phantom data
+    mpdf = mpdf_read(job_name, 0, eos_opacity, reset_xyz_by='R1', use_Tscales=use_Tscales)
+    mpdf.calc_sdf_params(['R1'])
+    sdf  = mpdf.data['gas']
+    sdf['R1_bin'] = np.floor(sdf['R1']*10)/10
+    ray = mupl.get_rays(mpdf.data['sink'][['x', 'y', 'z']].iloc[0], np.array([0., 0., 1.]))
+    srcfuncs = mpdf.const['sigma_sb'] * sdf['T']**4 #/ (4 * pi)
     
-    ax.axvline(x=stuff_mesa['R1'][0].value, color='orange', linestyle='dashed')
-    ax.axvline(x=ph_R1, color='grey', linestyle='dashed')
-    if what in {'T'}:
-        ax.text(ph_R1, ys_sdf[ph_ind]*1.1, f"${what}_{{ph}}$ = {ys_sdf[ph_ind]:.0f} {unit.cgs.to_string('latex_inline')}")
-    ax.legend(loc='lower left')
-    outfilename_noext = f"{output_dir}phantom-vs-mesa_{job_nickname}_{what}-R1"
-    if use_Tscales: outfilename_noext += f".T{use_Tscales}"
+    stuff = {}
+    stuff['kappa'] = mpdf.get_val('kappa').cgs
+    stuff['R1'   ] = mpdf.get_val('R1').to(units.Rsun)
+    stuff['T'    ] = mpdf.get_val('T').to(units.K)
+    stuff['L'    ] = (4 * pi * stuff['R1']**2 * (const.sigma_sb * stuff['T']**4)).to(units.Lsun)
+    stuff['rho'  ] = mpdf.get_val('rho').cgs
+    stuff['tau'  ] = np.ones(len(sdf))*PHOTOSPHERE_TAU * units.dimensionless_unscaled
+    
+    # rolling summary
+    sdf_grpby = sdf.groupby('R1_bin')
+    sdf_avg = sdf_grpby.mean()
+    sdf_std = sdf_grpby.std()
+    sdf_cnt = sdf_grpby.count()['iorig']
+    print("Number of bins with less than 8 data points: ", np.count_nonzero(sdf_cnt < 8))
+    
+    # reconstruct photosphere
+    sdf_avg['dR1'] = np.diff(sdf_avg['R1'], prepend=0)
+    sdf_std['dR1'] = 0.
+    sdf_avg['dtau'] = sdf_avg['kappa'] * sdf_avg['rho'] * sdf_avg['dR1']
+    sdf_std['dtau'] = sdf_avg['dtau'] * np.sqrt((sdf_std['kappa'] / sdf_avg['kappa'])**2 + (sdf_std['rho'] / sdf_avg['rho'])**2)
+    sdf_avg['tau'] = sdf_avg['dtau'][::-1].cumsum()[::-1]
+    sdf_std['tau'] = np.sqrt((sdf_std['dtau']**2)[::-1].cumsum()[::-1])
+    
+    # get photosphere loc
+    ph_inner_layers = np.where(sdf_avg['tau'] >= PHOTOSPHERE_TAU)[0]
+    if ph_inner_layers.size:
+        ph_ind = ph_inner_layers[-1]
+        ph_R1 = sdf_avg['R1'].iloc[ph_ind]
+    else:
+        ph_ind = len(sdf_avg) - 1
+        ph_R1 = sdf_avg['R1'].iloc[-1] + sdf_avg['dR1'].iloc[-1]
+    
+    # cleaning up
+    sdf_valp = sdf_avg + sdf_std
+    sdf_valm = sdf_avg - sdf_std
+    
+    plt.close('all')
+    for what in ['T', 'rho', 'kappa', 'tau']:
+        fig, ax, mask = plot_stuff(
+            stuff, 'R1', what, mpdf,
+            {'plot_title_suffix' : job_nickname + " - phantom vs mesa"},
+            xlim=xlim, label=label,
+        )
+        
+        xs, ys = stuff_mesa['R1'], stuff_mesa[what]
+        if isinstance(xs, units.Quantity): xs = xs.value
+        if isinstance(ys, units.Quantity): ys = ys.value
+        if xlim is None: mask = np.ones_like(xs, dtype=np.bool_)
+        else: mask = np.logical_and(xlim[0]*0.99 < xs, xs < xlim[1]*1.01)
+        unit = mpdf.get_val(what).unit if what != 'tau' else units.dimensionless_unscaled
+        
+        ax.semilogy(xs[mask], ys[mask], '-', label='mesa', linewidth=4, alpha=0.8)
+        ys_sdf = set_as_quantity(sdf_avg[what], unit).cgs.value
+        ax.semilogy(sdf_avg['R1'], ys_sdf, 'o--', label='phantom- aggregate', color='C2', linewidth=4, alpha=0.8)
+        ax.fill_between(sdf_avg['R1'], set_as_quantity(sdf_valm[what], unit).cgs.value, set_as_quantity(sdf_valp[what], unit).cgs.value, color='C2', alpha=0.4)
+        if   what=='T':     ax.set_ylim(2e3, 9e3)
+        elif what=='rho':   ax.set_ylim(8e-10, 5e-9)
+        elif what=='kappa': ax.set_ylim(5e-4, 8.0)
+        
+        ax.axvline(x=stuff_mesa['R1'][0].value, color='orange', linestyle='dashed')
+        ax.axvline(x=ph_R1, color='grey', linestyle='dashed')
+        if what in {'T'}:
+            ax.text(ph_R1, ys_sdf[ph_ind]*1.1, f"${what}_{{ph}}$ = {ys_sdf[ph_ind]:.0f} {unit.cgs.to_string('latex_inline')}")
+        ax.legend(loc='lower left')
+        outfilename_noext = f"{output_dir}phantom-vs-mesa_{job_nickname}_{what}-R1"
+        if use_Tscales: outfilename_noext += f".T{use_Tscales}"
+    
+        for ext in ['.png']:  # do NOT save to '.pdf' due to large amount of particles
+            outfilename = f"{outfilename_noext}{ext}"
+            fig.savefig(f"{outfilename}")
+            print(f"Saved to {outfilename}")
 
-    for ext in ['.png']:  # do NOT save to '.pdf' due to large amount of particles
-        outfilename = f"{outfilename_noext}{ext}"
-        fig.savefig(f"{outfilename}")
-        print(f"Saved to {outfilename}")
 
 
 
@@ -526,22 +533,125 @@ for what in ['T', 'rho', 'kappa', 'tau']:
 
 
 
+if False:
+
+    # plotting image
+    
+    norm_image = mpl.colors.LogNorm(1e-12, 1e-2, clip=False)
+
+    
+    output_dir = f'../fig/20240222_LCGen/{no_xy_txt}/'
+    
+    hollywood_mode: bool = False # True
+    
+    
+    if __name__ == '__main__':
+    
+        
+    
+        outfilenames_dict = {
+            'rads' : {},
+            'contr': {},
+        }
+    
+        figs = []
+        
+        data = {}
+        plt.close('all')
+    
+        job_profile = JOB_PROFILES_DICT[job_nickname]
+        job_name    = job_profile['job_name']
+        # file_indexes= job_profile['file_indexes']
+    
+        for file_index in [0]: #file_indexes: #[0, 1200, 4800, 8000, 17600]: #
+            plt.close('all')
+            data_full = mupl.hdf5_load(f"{interm_dir}{job_nickname}_{file_index:05d}.lcgen.{no_xy_txt}.hdf5")
+            xyzs_list = list(data_full.keys()).copy() if xyzs_list is None else xyzs_list
+            
+            # initialize
+            for d in outfilenames_dict.keys():
+                if job_nickname not in outfilenames_dict[d].keys():
+                    outfilenames_dict[d][job_nickname] = {xyzs: [] for xyzs in xyzs_list}
+    
+            for xyzs in xyzs_list:
+                data = data_full[xyzs]
+                # calc flux
+                # rads = data['rads'].to(unit_I)
+                flux = (data['rads']*data['area_per_ray']*units.rad**2 / spec_dist**2).to(unitsOut['flux'])
+                
+                # reconstructing rays
+                rays_u = np.zeros((data['rays'].shape[0], 2, 3)) * units.au
+                rays_u[:, 0, :2] = data['rays']
+                rays_u[:, 1, :2] = data['rays']
+                rays_u[:, 1] += data['ray_unit_vec'] * units.au
+    
+                I_avg = (data['lum']/(4*pi*spec_dist**2)*np.mean(data['area_per_ray']/data['area_tau'])).to(unitsOut['flux'])
+                I_range = np.min((20., (flux.max()/I_avg).cgs.value,)) * I_avg.value # flux.max().to(unit_I).value #
+                
+    
+                # plotting
+    
+                for fig in figs:
+                    fig.clear()
+                    plt.close(fig)
+                    del fig
+                del figs
+                figs = []
+                
+                i_tr = 3560 if job_nickname not in {'2m_2022', '4m', '4md'} else 3500
+                xylim_u = 100*units.au if file_index < i_tr else 250*units.au
+    
+                # cmap = plt.get_cmap('hot') #; cmap.set_over('white')
+                fig, _, outfilenames = plot_heat(
+                    no_xy, rays_u, flux,
+                    data_label=f"Flux $F$ (at {spec_dist.value:.0f} {spec_dist.unit.to_string('latex_inline')})",
+                    xyzs=xyzs, save_label=f"image",
+                    job_profile=job_profile, file_index=file_index, cmap='hot', notes=data,
+                    norm=norm_image,
+                    cbar_num_fmt=lambda x, pos: f"{x:.2e}",
+                    text_color='white',
+                    xylim=xylim_u.to_value(rays_u.unit) if hollywood_mode else None,
+                    output_dir=output_dir, out_exts=['png'], verbose=verbose_loop)
+                outfilenames_dict['rads' ][job_nickname][xyzs].append(outfilenames[-1])
+                figs.append(fig)
+    
+                
+                fig, _, outfilenames = plot_heat(
+                    no_xy, rays_u, data['contr'], data_label="contribution fraction of the most contributed",
+                    xyzs=xyzs, save_label=f"contr",
+                    job_profile=job_profile, file_index=file_index, cmap='seismic', notes=data,
+                    ticks=10,
+                    norm=mpl.colors.Normalize(0., 100.),
+                    text_color='white',
+                    xylim=xylim_u.to_value(rays_u.unit) if hollywood_mode else None,
+                    output_dir=output_dir, out_exts=['png'], verbose=verbose_loop)
+                outfilenames_dict['contr'][job_nickname][xyzs].append(outfilenames[-1])
+                figs.append(fig)
+                # del data, rays_u, rads, I_avg, I_range
+            del data_full
+            gc.collect()
 
 
 
-# plotting image
-
-norm_image = mpl.colors.LogNorm(1e-12, 1e-2, clip=False)
-
-rays_res = 256
-no_xy = (rays_res, rays_res)
-no_xy_txt = 'x'.join([f'{i}' for i in no_xy])
-output_dir = f'../fig/20240222_LCGen/{no_xy_txt}/'
-
-hollywood_mode: bool = False # True
 
 
-if __name__ == '__main__':
+
+
+
+
+
+if True:
+
+    # plotting movie
+
+    job_nicknames = ['2md']
+    
+
+    norm_image = mpl.colors.LogNorm(1e-12, 1e-2, clip=False)
+
+    output_dir = f'../fig/20240222_LCGen/{no_xy_txt}/olim_'
+    
+    hollywood_mode: bool = False # True
 
     
 
@@ -551,15 +661,101 @@ if __name__ == '__main__':
     }
 
     figs = []
+    for job_nickname in job_nicknames:
+        data = {}
+        plt.close('all')
+
+        job_profile = JOB_PROFILES_DICT[job_nickname]
+        job_name    = job_profile['job_name']
+        file_indexes= job_profile['file_indexes']
+
+        for file_index in file_indexes: #[0, 1200, 4800, 8000, 17600]: #
+            plt.close('all')
+            data_full = mupl.hdf5_load(f"{interm_dir}{job_nickname}_{file_index:05d}.lcgen.{no_xy_txt}.hdf5")
+            xyzs_list = list(data_full.keys()).copy() if xyzs_list is None else xyzs_list
+            
+            # initialize
+            for d in outfilenames_dict.keys():
+                if job_nickname not in outfilenames_dict[d].keys():
+                    outfilenames_dict[d][job_nickname] = {xyzs: [] for xyzs in xyzs_list}
+
+            for xyzs in xyzs_list:
+                data = data_full[xyzs]
+                # calc flux
+                # rads = data['rads'].to(unit_I)
+                flux = (data['rads']*data['area_per_ray']*units.rad**2 / spec_dist**2).to(unitsOut['flux'])
+                
+                # reconstructing rays
+                rays_u = np.zeros((data['rays'].shape[0], 2, 3)) * units.au
+                rays_u[:, 0, :2] = data['rays']
+                rays_u[:, 1, :2] = data['rays']
+                rays_u[:, 1] += data['ray_unit_vec'] * units.au
+
+                I_avg = (data['lum']/(4*pi*spec_dist**2)*np.mean(data['area_per_ray']/data['area_tau'])).to(unitsOut['flux'])
+                I_range = np.min((20., (flux.max()/I_avg).cgs.value,)) * I_avg.value # flux.max().to(unit_I).value #
+                
+
+                # plotting
+
+                for fig in figs:
+                    fig.clear()
+                    plt.close(fig)
+                    del fig
+                del figs
+                figs = []
+                
+                i_tr = 3560 if job_nickname not in {'2m_2022', '4m', '4md'} else 3500
+                xylim_u = 100*units.au if file_index < i_tr else 250*units.au
+
+                # cmap = plt.get_cmap('hot') #; cmap.set_over('white')
+                fig, _, outfilenames = plot_heat(
+                    no_xy, rays_u, flux,
+                    data_label=f"Flux $F$ (at {spec_dist.value:.0f} {spec_dist.unit.to_string('latex_inline')})",
+                    xyzs=xyzs, save_label=f"image",
+                    job_profile=job_profile, file_index=file_index, cmap='hot', notes=data,
+                    norm=norm_image,
+                    cbar_num_fmt=lambda x, pos: f"{x:.2e}",
+                    text_color='white',
+                    xylim=xylim_u.to_value(rays_u.unit) if hollywood_mode else None,
+                    output_dir=output_dir, out_exts=['png'], verbose=verbose_loop)
+                outfilenames_dict['rads' ][job_nickname][xyzs].append(outfilenames[-1])
+                figs.append(fig)
+
+                
+                fig, _, outfilenames = plot_heat(
+                    no_xy, rays_u, data['contr'], data_label="contribution fraction of the most contributed",
+                    xyzs=xyzs, save_label=f"contr",
+                    job_profile=job_profile, file_index=file_index, cmap='seismic', notes=data,
+                    ticks=10,
+                    norm=mpl.colors.Normalize(0., 100.),
+                    text_color='white',
+                    xylim=xylim_u.to_value(rays_u.unit) if hollywood_mode else None,
+                    output_dir=output_dir, out_exts=['png'], verbose=verbose_loop)
+                outfilenames_dict['contr'][job_nickname][xyzs].append(outfilenames[-1])
+                figs.append(fig)
+                # del data, rays_u, rads, I_avg, I_range
+            del data_full
+            gc.collect()
+
+
+
+
+    # transitioning
+
     
-    data = {}
-    plt.close('all')
+    for job_nickname in job_nicknames:
+        data = {}
+        plt.close('all')
 
-    job_profile = JOB_PROFILES_DICT[job_nickname]
-    job_name    = job_profile['job_name']
-    # file_indexes= job_profile['file_indexes']
+        job_profile = JOB_PROFILES_DICT[job_nickname]
+        job_name    = job_profile['job_name']
+        file_indexes= job_profile['file_indexes']
 
-    for file_index in [0]: #file_indexes: #[0, 1200, 4800, 8000, 17600]: #
+        #for file_index in file_indexes: #[0, 1200, 4800, 8000, 17600]: #
+        i_tr = 3560 if job_nickname not in {'2m_2022', '4m', '4md'} else 3500
+        n_tr = 30
+        file_index = i_tr
+
         plt.close('all')
         data_full = mupl.hdf5_load(f"{interm_dir}{job_nickname}_{file_index:05d}.lcgen.{no_xy_txt}.hdf5")
         xyzs_list = list(data_full.keys()).copy() if xyzs_list is None else xyzs_list
@@ -570,59 +766,89 @@ if __name__ == '__main__':
                 outfilenames_dict[d][job_nickname] = {xyzs: [] for xyzs in xyzs_list}
 
         for xyzs in xyzs_list:
-            data = data_full[xyzs]
-            # calc flux
-            # rads = data['rads'].to(unit_I)
-            flux = (data['rads']*data['area_per_ray']*units.rad**2 / spec_dist**2).to(unitsOut['flux'])
-            
-            # reconstructing rays
-            rays_u = np.zeros((data['rays'].shape[0], 2, 3)) * units.au
-            rays_u[:, 0, :2] = data['rays']
-            rays_u[:, 1, :2] = data['rays']
-            rays_u[:, 1] += data['ray_unit_vec'] * units.au
+            for ixylim, xylim_u in enumerate(np.linspace(100., 250., n_tr)*units.au):
+                data = data_full[xyzs]
+                # calc flux
+                # rads = data['rads'].to(unit_I)
+                flux = (data['rads']*data['area_per_ray']*units.rad**2 / spec_dist**2).to(unitsOut['flux'])
+                
+                # reconstructing rays
+                rays_u = np.zeros((data['rays'].shape[0], 2, 3)) * units.au
+                rays_u[:, 0, :2] = data['rays']
+                rays_u[:, 1, :2] = data['rays']
+                rays_u[:, 1] += data['ray_unit_vec'] * units.au
 
-            I_avg = (data['lum']/(4*pi*spec_dist**2)*np.mean(data['area_per_ray']/data['area_one'])).to(unitsOut['flux'])
-            I_range = np.min((20., (flux.max()/I_avg).cgs.value,)) * I_avg.value # flux.max().to(unit_I).value #
-            
+                # I_avg = (data['lum']/(4*pi*units.rad**2*data['area_one'])).to(unit_I)
+                # I_range = np.min((20., (rads.max()/I_avg).cgs.value,)) * I_avg.value # rads.max().to(unit_I).value #
+                I_avg = (data['lum']/(4*pi*spec_dist**2)*np.mean(data['area_per_ray']/data['area_tau'])).to(unitsOut['flux'])
+                I_range = np.min((20., (flux.max()/I_avg).cgs.value,)) * I_avg.value # flux.max().to(unit_I).value #
+                
 
-            # plotting
+                # plotting
 
-            for fig in figs:
-                fig.clear()
-                plt.close(fig)
-                del fig
-            del figs
-            figs = []
-            
-            i_tr = 3560 if job_nickname not in {'2m_2022', '4m', '4md'} else 3500
-            xylim_u = 100*units.au if file_index < i_tr else 250*units.au
+                for fig in figs:
+                    fig.clear()
+                    plt.close(fig)
+                    del fig
+                del figs
+                figs = []
+                
+                cmap = plt.get_cmap('hot') #plt.get_cmap()
+                #cmap.set_over('white')
 
-            # cmap = plt.get_cmap('hot') #; cmap.set_over('white')
-            fig, _, outfilenames = plot_heat(
-                no_xy, rays_u, flux,
-                data_label=f"Flux $F$ (at {spec_dist.value:.0f} {spec_dist.unit.to_string('latex_inline')})",
-                xyzs=xyzs, save_label=f"image",
-                job_profile=job_profile, file_index=file_index, cmap='hot', notes=data,
-                norm=norm_image,
-                cbar_num_fmt=lambda x, pos: f"{x:.2e}",
-                text_color='white',
-                xylim=xylim_u.to_value(rays_u.unit) if hollywood_mode else None,
-                output_dir=output_dir, out_exts=['png'], verbose=verbose_loop)
-            outfilenames_dict['rads' ][job_nickname][xyzs].append(outfilenames[-1])
-            figs.append(fig)
-
-            
-            fig, _, outfilenames = plot_heat(
-                no_xy, rays_u, data['contr'], data_label="contribution fraction of the most contributed",
-                xyzs=xyzs, save_label=f"contr",
-                job_profile=job_profile, file_index=file_index, cmap='seismic', notes=data,
-                ticks=10,
-                norm=mpl.colors.Normalize(0., 100.),
-                text_color='white',
-                xylim=xylim_u.to_value(rays_u.unit) if hollywood_mode else None,
-                output_dir=output_dir, out_exts=['png'], verbose=verbose_loop)
-            outfilenames_dict['contr'][job_nickname][xyzs].append(outfilenames[-1])
-            figs.append(fig)
-            # del data, rays_u, rads, I_avg, I_range
+                # xylim_u = 100*units.au if file_index<=3560 else 250*units.au
+                
+                fig, _, outfilenames = plot_heat(
+                    no_xy, rays_u, flux,
+                    data_label=f"Flux $F$ (at {spec_dist.value:.0f} {spec_dist.unit.to_string('latex_inline')})",
+                    xyzs=xyzs, save_label=f"image-{ixylim:04d}",
+                    job_profile=job_profile, file_index=file_index, cmap=cmap, notes=data,
+                    norm=norm_image,
+                    cbar_num_fmt=lambda x, pos: f"{x:.2e}",
+                    facecolor=cmap.get_under(), text_color='white',
+                    xylim=xylim_u.to_value(rays_u.unit),
+                    output_dir=output_dir, out_exts=['png'], verbose=verbose_loop)
+                outfilenames_dict['rads' ][job_nickname][xyzs].append(outfilenames[-1])
+                figs.append(fig)
+                
+                fig, _, outfilenames = plot_heat(
+                    no_xy, rays_u, data['contr'], data_label="contribution fraction of the most contributed",
+                    xyzs=xyzs, save_label=f"contr-{ixylim:04d}",
+                    job_profile=job_profile, file_index=file_index, cmap='seismic', notes=data,
+                    ticks=10,
+                    norm=mpl.colors.Normalize(0., 100.),
+                    xylim=xylim_u.to_value(rays_u.unit),
+                    output_dir=output_dir, out_exts=['png'], verbose=verbose_loop)
+                outfilenames_dict['contr'][job_nickname][xyzs].append(outfilenames[-1])
+                figs.append(fig)
+                del data, rays_u, flux, I_avg, I_range
         del data_full
         gc.collect()
+
+
+    # generating movies (2md) (with 2 different fps speed- fixed to 1/6 second per 100 dumps)
+    no_xy_txt = "256x256"
+    job_nickname = '2md'
+    # i_tr = 3560   # transitional frame index
+    n_tr = 30     # transitional frame no
+    for xyz in ['xyz', 'xzy', 'yzx']:
+        input_dir = f'../fig/20240222_LCGen/{no_xy_txt}/'
+        output_dir= f'../fig/20240222_LCGen/'
+        for mode in ['image', 'contr']:
+            fps1, outfilenames1 = 30, [
+                f"{input_dir}heat_{job_nickname}_{i:05d}_{xyz}_{mode}_256x256.png" for i in range(   0,  i_tr,  20)
+            ] + [
+                f"{input_dir}heat_{job_nickname}_{i_tr:05d}_{xyz}_{mode}-{0:04d}_256x256.png"
+            ]*5 + [
+                f"{input_dir}heat_{job_nickname}_{i_tr:05d}_{xyz}_{mode}-{i_t:04d}_256x256.png" for i_t in range(n_tr)
+            ] + [
+                f"{input_dir}heat_{job_nickname}_{i_tr:05d}_{xyz}_{mode}-{n_tr-1:04d}_256x256.png"
+            ]*5 + [
+                f"{input_dir}heat_{job_nickname}_{i:05d}_{xyz}_{mode}_256x256.png" for i in range(i_tr,  5000,  20)
+            ]
+            fps2, outfilenames2 = 12, [
+                f"{input_dir}heat_{job_nickname}_{i:05d}_{xyz}_{mode}_256x256.png" for i in range(5000, 9900+1,  50)
+            ]
+            moviefilename = f'{output_dir}heat_{job_nickname}__{xyz}_{mode}_{no_xy_txt}__movie-hollywood.mp4'
+            with ImageSequenceClip(outfilenames1, fps=fps1) as vid1, ImageSequenceClip(outfilenames2, fps=fps2) as vid2:
+                concatenate_videoclips((vid1, vid2)).write_videofile(moviefilename)

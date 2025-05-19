@@ -19,6 +19,7 @@ xyzs_list  = ['xyz', 'xzy', 'yzx']
 no_xy=(64, 64)  #(256, 256)
 no_xy_txt = 'x'.join([f'{i}' for i in no_xy])
 output_dir = f'../fig/20240222_LCGen/{no_xy_txt}/'
+interm_dir += 'olim_'
 verbose_loop = 0
 
 # at t=0... (only used when use_Tscales=True)
