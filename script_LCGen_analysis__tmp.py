@@ -640,7 +640,7 @@ if False:
 
 
 
-if True:
+if False:
 
     # plotting movie
 
@@ -826,14 +826,16 @@ if True:
         gc.collect()
 
 
+if True:
+
     # generating movies (2md) (with 2 different fps speed- fixed to 1/6 second per 100 dumps)
     no_xy_txt = "256x256"
     job_nickname = '2md'
-    # i_tr = 3560   # transitional frame index
+    i_tr = 3560   # transitional frame index
     n_tr = 30     # transitional frame no
     for xyz in ['xyz', 'xzy', 'yzx']:
-        input_dir = f'../fig/20240222_LCGen/{no_xy_txt}/'
-        output_dir= f'../fig/20240222_LCGen/'
+        input_dir = f'../fig/20240222_LCGen/{no_xy_txt}/olim_'
+        output_dir= f'../fig/20240222_LCGen/olim_'
         for mode in ['image', 'contr']:
             fps1, outfilenames1 = 30, [
                 f"{input_dir}heat_{job_nickname}_{i:05d}_{xyz}_{mode}_256x256.png" for i in range(   0,  i_tr,  20)
