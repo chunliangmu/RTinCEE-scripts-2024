@@ -16,7 +16,8 @@ from clmuphantomlib.units_util import DEFAULT_UNITS
 
 verbose = 3
 
-output_dir = f'../fig/20241212_photosphere-axes_v-vs-R1/'
+interm_dir += 'test_'
+output_dir = f'../fig/20241212_photosphere-axes_v-vs-R1/test_'
 
 
 # units used in the dump file
