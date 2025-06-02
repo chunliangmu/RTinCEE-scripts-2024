@@ -117,24 +117,24 @@ def mpdf_read(
     if 'kappa' in mpdf.data['gas'].keys():
         unit_opacity = units.cm**2/units.g    # opacity units in original phantom dumpfiles
         kappa_mesa = eos_opacity.get_kappa(mpdf.get_val('rho'), mpdf.get_val('T'), do_extrap=do_extrap)
-        mpdf.data['gas']['kappa_dust'] = mpdf.data['gas']['kappa'] - kappa_gas.to_value(unit_opacity)
+        mpdf.data['gas']['kappaDust'] = mpdf.data['gas']['kappa'] - kappa_gas.to_value(unit_opacity)
         # fix negative opacities
-        mpdf.data['gas']['kappa_dust'] = np.where(
-            mpdf.data['gas']['kappa_dust'] < kappa_tol.to_value(unit_opacity),
+        mpdf.data['gas']['kappaDust'] = np.where(
+            mpdf.data['gas']['kappaDust'] < kappa_tol.to_value(unit_opacity),
             0.,
-            mpdf.data['gas']['kappa_dust'],
+            mpdf.data['gas']['kappaDust'],
         )
         mpdf.data['gas']['kappa'] = np.where(
             mpdf.data['gas']['T'] < T_cond_oxy,
             mpdf.data['gas']['kappa'],
-            mpdf.data['gas']['kappa_dust'] + kappa_mesa.to_value(unit_opacity),
+            mpdf.data['gas']['kappaDust'] + kappa_mesa.to_value(unit_opacity),
         )
         mpdf.data['gas']['kappa'] = get_val_in_unit(mpdf.data['gas']['kappa'], unit_opacity, mpdf.units['opacity'])
-        mpdf.data['gas']['kappa_dust'] = get_val_in_unit(mpdf.data['gas']['kappa_dust'], unit_opacity, mpdf.units['opacity'])
+        mpdf.data['gas']['kappaDust'] = get_val_in_unit(mpdf.data['gas']['kappaDust'], unit_opacity, mpdf.units['opacity'])
         
         if is_verbose(verbose, 'debug'):
             say('debug', None, verbose,
-                f"{np.count_nonzero(mpdf.data['gas']['kappa_dust']) = }",
+                f"{np.count_nonzero(mpdf.data['gas']['kappaDust']) = }",
                 f"{np.count_nonzero(mpdf.data['gas']['kappa'])      = }")
     else:
         #raise NotImplementedError("non-dusty sims (no kappa column in dump files) not yet implemented")
