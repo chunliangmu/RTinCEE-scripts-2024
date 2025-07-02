@@ -22,10 +22,7 @@ output_dir = f'../fig/20240222_LCGen/{no_xy_txt}/'
 interm_dir += 'olim_'
 verbose_loop = 0
 
-sample_midtau        : float = 10.    # middle point tau of sample fraction, where linear scale changes to log scale
-sample_maxtau        : float = 100.   # max tau of sample fraction (must > midtau, preferably >= 2 * midtau)
-nsample_pp           : int   = 1000   # no of sample points for tau in (0., midtau] (linear) and (midtau, maxtau] (log)
-                                      #    total no of sample points is hence twice as nsample_pp
+nsample_pp           : int   = 100   # no of sample points per particle for integration
 
 # at t=0... (only used when use_Tscales=True)
 # numbers from Gonzalez-2024-1
