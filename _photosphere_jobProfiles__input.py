@@ -39,7 +39,7 @@ JOB_PROFILES_LIST = (
     {
         'raw_dir' : '../raw/clmu_2mdh/',
         'file_prefix': 'lumo',
-        'file_indexes': np.array([0]),
+        'file_indexes': np.arange(0, 2000+1, 10),
         'plot_title_suffix': f" for 1.7{Msun_str} star (halfway companion, forced MESA profile)",
         'ieos': 10,
         'params': {
@@ -54,7 +54,7 @@ JOB_PROFILES_LIST = (
     {
         'raw_dir' : '../raw/clmu_2mds/',
         'file_prefix': 'lumo',
-        'file_indexes': np.array([0]),
+        'file_indexes': np.arange(0, 2000+1, 10),
         'plot_title_suffix': f" for 1.7{Msun_str} star (surface companion, forced MESA profile)",
         'ieos': 10,
         'params': {
@@ -67,24 +67,9 @@ JOB_PROFILES_LIST = (
         'color': 'blue',
     },
     {
-        'raw_dir' : '../raw/clmu_2mdd/',
-        'file_prefix': 'lumo',
-        'file_indexes': np.array([0]),
-        'plot_title_suffix': f" for 1.7{Msun_str} star (donor only, forced MESA profile)",
-        'ieos': 10,
-        'params': {
-            'X' : 0.691,
-            'Z' : 0.021,
-            'mu': 2.381,
-        },
-        'name': f"Donor 1.7{Msun_str}",
-        'nickname': '2mdd',
-        'color': 'blue',
-    },
-    {
         'raw_dir' : '../raw/clmu_2mdc/',
         'file_prefix': 'lumo',
-        'file_indexes': np.array([0]),
+        'file_indexes': np.arange(0, 2000+1, 10),
         'plot_title_suffix': f" for 1.7{Msun_str} star with forced MESA profile",
         'ieos': 10,
         'params': {
@@ -94,6 +79,36 @@ JOB_PROFILES_LIST = (
         },
         'name': f"Cut 1.7{Msun_str}",
         'nickname': '2mdc',
+        'color': 'blue',
+    },
+    {
+        'raw_dir' : '../raw/clmu_2mdd/',
+        'file_prefix': 'lumo',
+        'file_indexes': np.arange(0, 2000+1, 10),
+        'plot_title_suffix': f" for 1.7{Msun_str} star (donor only, forced MESA profile)",
+        'ieos': 10,
+        'params': {
+            'X' : 0.691,
+            'Z' : 0.021,
+            'mu': 2.381,
+        },
+        'name': f"DonorF 1.7{Msun_str}",
+        'nickname': '2mdd',
+        'color': 'blue',
+    },
+    {
+        'raw_dir' : '../raw/clmu_2mddo/',
+        'file_prefix': 'lumo',
+        'file_indexes': np.arange(0, 2000+1, 10),
+        'plot_title_suffix': f" for 1.7{Msun_str} star (donor only)",
+        'ieos': 10,
+        'params': {
+            'X' : 0.691,
+            'Z' : 0.021,
+            'mu': 2.381,
+        },
+        'name': f"Donor 1.7{Msun_str}",
+        'nickname': '2mddo',
         'color': 'blue',
     },
     {
