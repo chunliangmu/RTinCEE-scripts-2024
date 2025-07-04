@@ -1130,7 +1130,7 @@ do_debug = False
 # .
 # 
 
-# In[14]:
+# In[15]:
 
 
 if __name__ == '__main__' and not do_debug:
@@ -1344,17 +1344,6 @@ if __name__ == '__main__' and not do_debug:
                             xyzs=xyzs, save_label=f"contr{save_label_addon}",
                             job_profile=job_profile, file_index=file_index, cmap='seismic', notes=data,
                             output_dir=output_dir, verbose=verbose_loop)
-                        # fig, ax, outfilenames = plot_imshow(
-                        #     no_xy, rays_u, areas_p, data_label="$<1>$",
-                        #     xyzs=xyzs, save_label=f"pones{save_label_addon}",
-                        #     job_profile=job_profile, file_index=file_index, notes=data,
-                        #     norm=plt.Normalize(0., 1.),
-                        #     output_dir=output_dir, verbose=verbose_loop)
-                        #fig, ax, outfilenames = plot_imshow(
-                        #    no_xy, rays_u, np.abs(anses_fft), data_label="FFt of $I$", xyzs=xyzs, save_label=f"I-fft",
-                        #    norm=mpl.colors.LogNorm(),
-                        #    job_profile=job_profile, file_index=file_index, notes=data, output_dir=output_dir, verbose=verbose_loop)
-
 
                     # debug
                     print()
@@ -1366,28 +1355,6 @@ if __name__ == '__main__' and not do_debug:
                     lum_in_ph = (4*pi*units.sr*(rads[inds] * areas_u[inds]).sum()).to(units.Lsun)
                     print(f"{lum       = :.2f}\n{lum_in_ph = :.2f}    ({(lum_in_ph / lum).to(units.percent):.2f})")
 
-
-                    # # plotting - spec in wavlen space
-                    # spec_dist = 10 * units.parsec
-                    # fig, ax = plt.subplots(figsize=(10, 8))
-                    # y = (L_wavs/(4*pi*spec_dist**2)).to((units.erg / units.s / units.cm**2) / units.angstrom)
-                    # x = wavlens.to(units.angstrom)
-                    # ax.loglog(x, y)
-                    # ax.set_title(f"SED (viewed at {spec_dist:.1f} with gray opacity)\n{job_profile['plot_title_suffix']}")
-                    # ax.set_xlabel(f"$\\lambda$ / {x.unit.to_string('latex_inline')}")
-                    # ax.set_ylabel(f"$f_{{\\lambda}}$ / {y.unit.to_string('latex_inline')}")
-                    # ax.set_xlim(5e2, 1e6)
-                    # ax.set_ylim(1e-9, 1e-3)
-                    # ax.text(
-                    #     0.98, 0.02,
-                    #     f"Time = {mpdf.get_time():.1f}\n" + \
-                    #     f" $L$ = {lum.value:.0f} {lum.unit.to_string('latex_inline')}",
-                    #     #color = "black",
-                    #     ha = 'right', va = 'bottom',
-                    #     transform=ax.transAxes,
-                    # )
-                    # fig.savefig(f"{output_dir}Spec_{job_nickname}_{file_index:05d}_{no_xy_txt}.png")
-
                     # record time used
                     python_time_ended = now()
                     python_time__used  = python_time_ended - python_time_start
@@ -1395,37 +1362,7 @@ if __name__ == '__main__' and not do_debug:
 
 
         # save data for now
-        with open(f"{interm_dir}lcgen.{no_xy_txt}.json", 'w') as f:
-            mupl.json_dump(comb, f, metadata)
-
-
-        # #plotting
-        # plt.close('all')
-        # fig, ax = plt.subplots(figsize=(10, 8))
-        # for xyzs in xyzs_list:
-        #     ax.semilogy(
-        #         comb[job_nickname][xyzs]['times'].to_value(units.yr), comb[job_nickname][xyzs]['lums'].to_value(units.Lsun),
-        #         'o--', label=f"Viewed from +{xyzs[2]}")
-        # ax.legend()
-        # ax.set_xlabel('Time / yr')
-        # ax.set_ylabel('Luminosity / Lsun')
-        # ax.set_xlim(0., 45.)
-        # ax.set_ylim(1e4, 5e6)
-        # outfilename_noext = f"{output_dir}LC_{job_nickname}_{no_xy_txt}"
-
-        # if False:
-        #     # write pdf
-        #     outfilename = f"{outfilename_noext}.pdf"
-        #     fig.savefig(outfilename)
-        #     if is_verbose(verbose, 'note'):
-        #         say('note', None, verbose, f"Fig saved to {outfilename}.")
-
-        # # write png (with plot title)
-        # ax.set_title(f"Light curve ({job_nickname}, {no_xy_txt} rays)")
-        # outfilename = f"{outfilename_noext}.png"
-        # fig.savefig(outfilename)
-        # if is_verbose(verbose, 'note'):
-        #     say('note', None, verbose, f"Fig saved to {outfilename}.")
+        mupl.hdf5_dump(comb, f"{interm_dir}lcgen.{no_xy_txt}.{job_nickname}.hdf5", metadata)
 
     plt.close('all')
     mupl.hdf5_dump(comb, f"{interm_dir}lcgen.{no_xy_txt}.hdf5.gz", metadata)
