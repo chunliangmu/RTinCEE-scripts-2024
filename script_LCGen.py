@@ -1130,7 +1130,7 @@ do_debug = False
 # .
 # 
 
-# In[15]:
+# In[23]:
 
 
 if __name__ == '__main__' and not do_debug:
@@ -1138,7 +1138,7 @@ if __name__ == '__main__' and not do_debug:
     # init combined data
     comb = {}
 
-    for job_nickname in ['2md', ]:  #job_nicknames: #['2md', ]:  #
+    for job_nickname in job_nicknames: #['2md', ]:  #
         job_profile = JOB_PROFILES_DICT[job_nickname]
         job_name    = job_profile['job_name']
         file_indexes= job_profile['file_indexes']  #[17600,]  #
@@ -1362,7 +1362,7 @@ if __name__ == '__main__' and not do_debug:
 
 
         # save data for now
-        mupl.hdf5_dump(comb, f"{interm_dir}lcgen.{no_xy_txt}.{job_nickname}.hdf5", metadata)
+        mupl.hdf5_dump({job_nickname: comb[job_nickname]}, f"{interm_dir}lcgen.{no_xy_txt}.{job_nickname}.hdf5", metadata)
 
     plt.close('all')
     mupl.hdf5_dump(comb, f"{interm_dir}lcgen.{no_xy_txt}.hdf5.gz", metadata)
