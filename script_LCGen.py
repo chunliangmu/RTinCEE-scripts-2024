@@ -160,7 +160,7 @@ def _integrate_along_rays_gridxy_sub_parallel_olim(
     pts_order            : npt.NDArray[np.float64],    # (npart,  )-shaped
     rel_tol              : float = 1e-16, # because float64 has only 16 digits accuracy
     nsample_pp           : int   = 100,  # no of sample points for integration
-    z_olim_kc            : float = 1.0,  # col kernel limit for when srcfunc began to count
+    z_olim_kc            : float = 1.152,  # col kernel limit for when srcfunc began to count
 ) -> tuple[
     npt.NDArray[np.float64],    # anses
     npt.NDArray[np.float64],    # olims
@@ -493,6 +493,7 @@ def integrate_along_rays_gridxy(
     err_h       : float = 1.0,
     rel_tol     : float = 1e-16,
     nsample_pp  : int   = 1000,
+    z_olim_kc   : float = 1.152,
     sdf_kdtree  : None|kdtree.KDTree = None,
     xyzs_names_list : list = ['x', 'y', 'z'],
     verbose     : int = 3,
@@ -558,6 +559,11 @@ def integrate_along_rays_gridxy(
     nsample_pp : int
         no of sample points per particle for integration
 
+    z_olim_kc : float
+        col kernel limit for when srcfunc began to count
+        1.152 because it is where there's an average of 14.5 particles (1/4 N_neigh) on the outer side, as
+            quad(lambda q_xy: N_neigh/4*w_col(q_xy,3)*q_xy, 0., 2.,) gives 2.304
+
     sdf_kdtree : kdtree.KDTree
         KDTree built from sdf[['x', 'y', 'z']], for fast neighbour search.
         if None, will build one.
@@ -621,7 +627,7 @@ def integrate_along_rays_gridxy(
         rads, olims, pones, ptaus, indes, contr, jfact, jfact_olims, estis = _integrate_along_rays_gridxy_sub_parallel_olim(
             pts_ordered, hs_ordered, mkappa_div_h2_ordered, srcfuncs_ordered,
             rays_xy, ray_areas, kernel_rad, kernel_col, kernel_csz, kernel.w,
-            pts_order, rel_tol=rel_tol, nsample_pp=nsample_pp)
+            pts_order, rel_tol=rel_tol, nsample_pp=nsample_pp, z_olim_kc=z_olim_kc)
     else:
         raise NotImplementedError("parallel=False version of this function not yet implemented.")
 
