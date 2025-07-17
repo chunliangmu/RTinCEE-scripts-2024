@@ -37,9 +37,24 @@ PHOTOSPHERE_TAU = 2./3. #np.log(2)
 # script input parameters
 JOB_PROFILES_LIST = (
     {
+        'raw_dir' : '../raw/clmu_4mdc/',
+        'file_prefix': 'lumo',
+        'file_indexes': np.arange(0, 1400+1, 100),
+        'plot_title_suffix': f" for 3.7{Msun_str} star with forced MESA profile",
+        'ieos': 10,
+        'params': {
+            'X' : 0.686,
+            'Z' : 0.024,
+            'mu': 2.381,
+        },
+        'name': f"Cut 3.7{Msun_str}",
+        'nickname': '4mdc',
+        'color': 'blue',
+    },
+    {
         'raw_dir' : '../raw/clmu_4mdd/',
         'file_prefix': 'lumo',
-        'file_indexes': np.arange(0, 2000+1, 10),
+        'file_indexes': np.arange(0, 1300+1, 100),
         'plot_title_suffix': f" for 3.7{Msun_str} star (donor only, forced MESA profile)",
         'ieos': 10,
         'params': {
@@ -54,7 +69,7 @@ JOB_PROFILES_LIST = (
     {
         'raw_dir' : '../raw/clmu_4mddo/',
         'file_prefix': 'lumo',
-        'file_indexes': np.arange(0, 2000+1, 10),
+        'file_indexes': np.arange(0, 1500+1, 100),
         'plot_title_suffix': f" for 3.7{Msun_str} star (donor only)",
         'ieos': 10,
         'params': {
