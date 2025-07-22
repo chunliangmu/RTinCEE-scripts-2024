@@ -39,7 +39,7 @@ JOB_PROFILES_LIST = (
     {
         'raw_dir' : '../raw/clmu_4mdc/',
         'file_prefix': 'lumo',
-        'file_indexes': np.arange(0, 1400+1, 100),
+        'file_indexes': np.arange(0, 2000+1, 10),
         'plot_title_suffix': f" for 3.7{Msun_str} star with forced MESA profile",
         'ieos': 10,
         'params': {
@@ -54,7 +54,7 @@ JOB_PROFILES_LIST = (
     {
         'raw_dir' : '../raw/clmu_4mdd/',
         'file_prefix': 'lumo',
-        'file_indexes': np.arange(0, 1300+1, 100),
+        'file_indexes': np.concatenate((np.arange(0, 1400+1, 10), np.arange(1400, 1600+1, 100))),
         'plot_title_suffix': f" for 3.7{Msun_str} star (donor only, forced MESA profile)",
         'ieos': 10,
         'params': {
@@ -69,7 +69,7 @@ JOB_PROFILES_LIST = (
     {
         'raw_dir' : '../raw/clmu_4mddo/',
         'file_prefix': 'lumo',
-        'file_indexes': np.arange(0, 1500+1, 100),
+        'file_indexes': np.concatenate((np.arange(0, 1160+1, 10), np.arange(1200, 1700+1, 100))),
         'plot_title_suffix': f" for 3.7{Msun_str} star (donor only)",
         'ieos': 10,
         'params': {
@@ -266,7 +266,7 @@ JOB_PROFILES_LIST = (
         'file_prefix': 'light',
         #'job_name': '../photosphere/luis_2md/light', # deprecated keyword- will still be added automatically later
         #'file_indexes': np.arange(0, 17600+1, 100),
-        'file_indexes': np.concatenate((np.arange(0, 5000-1, 20), np.arange(5000, 17600+1, 50))),
+        'file_indexes': np.concatenate((np.arange(0, 5000, 20), np.arange(5000, 17600+1, 50))),
         'plot_title_suffix': f" for 1.7{Msun_str} primary with Dust",
         'ieos': 10,
         'params': {
