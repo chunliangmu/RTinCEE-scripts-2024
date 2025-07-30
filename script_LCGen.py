@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[1]:
+# In[ ]:
 
 
 """Scripts for analyzing of phantom outputs.
@@ -30,7 +30,7 @@ which is the length of below line of '-' characters.
 
 # ## Imports & Settings
 
-# In[2]:
+# In[ ]:
 
 
 import math
@@ -60,7 +60,7 @@ try: np.trapezoid
 except AttributeError: np.trapezoid = np.trapz
 
 
-# In[3]:
+# In[ ]:
 
 
 # import my modules listed in ./main/
@@ -79,7 +79,7 @@ from multiprocessing import cpu_count, Pool #Process, Queue
 NPROCESSES = 1 if cpu_count() is None else max(cpu_count(), 1)
 
 
-# In[4]:
+# In[ ]:
 
 
 # settings
@@ -90,7 +90,7 @@ NPROCESSES = 1 if cpu_count() is None else max(cpu_count(), 1)
 from script_LCGen__input import (
     verbose, verbose_loop,
     interm_dir, output_dir, JOB_PROFILES_DICT, job_nicknames, xyzs_list, no_xy, no_xy_txt,
-    unitsOut, PHOTOSPHERE_TAU, wavlens, use_Tscales, nsample_pp
+    unitsOut, PHOTOSPHERE_TAU, AVG_KC_PP, wavlens, use_Tscales, nsample_pp, z_olim_kc,
 )
 from _sharedFuncs import mpdf_read
 
@@ -113,7 +113,7 @@ if __name__ == '__main__' and is_verbose(verbose, 'note'):
     say('note', "script", verbose, f"Will use {NPROCESSES} processes for parallelization")
 
 
-# In[5]:
+# In[ ]:
 
 
 from clmuphantomlib.log import say, is_verbose
@@ -141,7 +141,7 @@ from clmuphantomlib.geometry import get_dist2_from_pts_to_line, get_dist2_from_p
 
 # #### Test codes
 
-# In[6]:
+# In[ ]:
 
 
 # test runs
@@ -161,15 +161,16 @@ def _integrate_along_rays_gridxy_sub_parallel_olim(
     rel_tol              : float = 1e-16, # because float64 has only 16 digits accuracy
     nsample_pp           : int   = 100,  # no of sample points for integration
     z_olim_kc            : float = 1.152,  # col kernel limit for when srcfunc began to count
+    photosphere_tau      : float = 2./3.,
 ) -> tuple[
-    npt.NDArray[np.float64],    # anses
-    npt.NDArray[np.float64],    # olims
-    npt.NDArray[np.float64],    # pones
-    npt.NDArray[np.float64],    # ptaus
+    npt.NDArray[np.float64],    # rads
+    npt.NDArray[np.float64],    # rads_olim
+    npt.NDArray[np.float64],    # phkcs
+    npt.NDArray[np.float64],    # pphzs
     npt.NDArray[np.int64  ],    # indes
     npt.NDArray[np.float64],    # contr
     npt.NDArray[np.float64],    # jfact
-    npt.NDArray[np.float64],    # jfact_olims
+    npt.NDArray[np.float64],    # jfact_olim
     npt.NDArray[np.float64],    # estis
 ]:
     """Sub process for integrate_along_ray_gridxy(). Numba parallel version (using prange).
@@ -200,24 +201,21 @@ def _integrate_along_rays_gridxy_sub_parallel_olim(
 
     Returns
     -------
-    anses, pones, ptaus, indes, contr, jfact
+    rads, rads_olim, phkcs, pphzs, indes, contr, jfact, jfact_olim, estis
 
-    anses: (nray,)-shaped np.ndarray[float]
+    rads: (nray,)-shaped np.ndarray[float]
         Radiance (i.e. specific intensities) for each ray.
 
-    olims: (nray,)-shaped np.ndarray[float]
+    rads_olim: (nray,)-shaped np.ndarray[float]
         Radiance (i.e. specific intensities) for each ray, excluding unresolved surface.
 
-    pones: (nray,)-shaped np.ndarray[float]
-        <1> for each pixel,
-        i.e. same integration of radiance but for a constant 'srcfunc' of '1', for each ray.
-        Helpful for consistency check (should be more or less 1 where ptaus is nan.)
-        do weighted average by weight of areas per pixel to get the total area of the object!
+    phkcs: (nray,)-shaped np.ndarray[float]
+        Summed column kernel values at the photosphere.
+        summed of all particle's columne kernel if photosphere not found
 
-    ptaus: (nray,)-shaped np.ndarray[float]
-        The optical depth for each pixel
-        *** WILL BE np.nan IF OPTICAL DEPTH IS DEEP (which will be MOST OF THE TIME.)  ***
-        can be used as an alternative way to calculate the area of the object.
+    pphzs: (nray,)-shaped np.ndarray[float]
+        locations of the photosphere (i.e. z value).
+        np.nan if photosphere not found
 
     indes: (nray,)-shaped np.ndarray[int]
         indexes of the max contribution particle
@@ -230,7 +228,7 @@ def _integrate_along_rays_gridxy_sub_parallel_olim(
         Cannot be used as a way to calc lum
             because we are additionally assuming the outermost particles has srcfunc of zero.
 
-    jfact_olims: (npart,)-shaped np.ndarray[float]
+    jfact_olim: (npart,)-shaped np.ndarray[float]
         Contribution factor for j-th particle.
         Multiply it with 4 * pi * srcfuncs and sum it up as an alternative way to get the luminosity.
         Will be zero if particle is not used.
@@ -246,14 +244,16 @@ def _integrate_along_rays_gridxy_sub_parallel_olim(
     npart = len(srcfuncs_ordered)
     ndim  = pts_ordered.shape[-1]
     rads  = np.zeros(nray)
-    olims = np.zeros(nray)
+    rads_olim = np.zeros(nray)
     indes = np.zeros(nray, dtype=np.int64)    # indexes of max contribution particle
     contr = np.zeros(nray)     # relative contribution of the max contribution particle
     # ifact = np.zeros(nray)     # effective xsec for i-th ray  # NOTE: ifact = pones * ray_areas
     jfact = np.zeros(npart)    # effective xsec for j-th particle
-    jfact_olims = np.zeros(npart)    # effective xsec for j-th particle
-    pones = np.zeros(nray)
-    ptaus = np.full(nray, np.nan)    # lower bound of the optical depth
+    jfact_olim = np.zeros(npart)    # effective xsec for j-th particle
+    phkcs = np.zeros(nray)    # photosphere column kernels
+    pphzs = np.full(nray, np.nan)    # photosphere z
+    # pones = np.zeros(nray)
+    # ptaus = np.full(nray, np.nan)    # lower bound of the optical depth
     estis = np.zeros(nray)
 
     # error tolerance of tau (part 1)
@@ -321,6 +321,8 @@ def _integrate_along_rays_gridxy_sub_parallel_olim(
         used_j = 0    # j = used_indexes[used_j]
         tau    = 0.
         rad_est= 0.   # estimation of radiance (i.e. rad)
+        kc     = 0.
+        kcs    = 0.   # col kernel cummulative sum
         for j in range(npart):
             x_j = pts_ordered[j, 0]
             y_j = pts_ordered[j, 1]
@@ -340,7 +342,9 @@ def _integrate_along_rays_gridxy_sub_parallel_olim(
                     dz = np.sqrt(dz2)
                     mkappa_div_h2 = mkappa_div_h2_ordered[j]
                     srcfunc = srcfuncs_ordered[j]
-                    dtau = mkappa_div_h2 * kernel_col(q_xy, ndim)
+                    kc = kernel_col(q_xy, ndim)
+                    dtau = mkappa_div_h2 * kc
+                    kcs += kc
 
                     used_indexes[used_j] = j
                     used_dtaus[  used_j] = dtau
@@ -357,14 +361,15 @@ def _integrate_along_rays_gridxy_sub_parallel_olim(
                     # i.e. since when tau > np.log(srcfuncs_ordered.sum()) - np.log(rel_tol) - np.log(rad),
                     #    we know that rad[i] - rad[i][k] < rel_tol * rad[i]
                     # see my notes for derivation
-                    if tau > tol_tau_base_i - np.log(rad_est):
+                    #    This should mean tau > photosphere_tau, but let's check it anyway to make sure
+                    if tau > tol_tau_base_i - np.log(rad_est) and tau > photosphere_tau:
                         break
         else:
-            ptaus[i]=tau
+            # ptaus[i] = tau
+            phkcs[i] = kcs    # photosphere not found if didn't break
         nused_i = used_j     # update used indexes size
-        estis[i]= rad_est
         used_dtaus = used_dtaus[:nused_i]
-
+        estis[i] = rad_est
 
 
         if nused_i <= 0:
@@ -375,6 +380,7 @@ def _integrate_along_rays_gridxy_sub_parallel_olim(
         # Now, do radiative transfer
 
         z_olim_not_found = True
+        photosphere_not_found = True
         kcs_j  = np.zeros(nsample_pp)
         for used_j in range(nused_i):
             j    = used_indexes[used_j]
@@ -400,8 +406,6 @@ def _integrate_along_rays_gridxy_sub_parallel_olim(
             dfac  = 0.
             dfac_olim = 0.    # same as dfac, except that discounts the part outside z_olim (outmost particle loc) to zero
             ddfac = 0.    # temp storage
-
-            kcs = 0.    # col kernel cummulative sum
             if z_olim_not_found:
                 kcs_j[:] = 0
             # get optical depth
@@ -439,6 +443,17 @@ def _integrate_along_rays_gridxy_sub_parallel_olim(
                             z_olim_not_found = False
                             break
 
+            # find photosphere
+            if photosphere_not_found:
+                if taus_j[0] > photosphere_tau:    # found
+                    for ji_r in range(nsample_pp):
+                        ji = nsample_pp - ji_r - 1
+                        if taus_j[ji] > photosphere_tau:
+                            pphzs[i] = zs_j[ji]
+                            phkcs[i] = kcs_j[ji]
+                            photosphere_not_found = False
+                            break
+
             # integrate through opitcal depth for j
             for ji in range(nsample_pp):
                 # ****** Integration pending improvement ******
@@ -458,22 +473,22 @@ def _integrate_along_rays_gridxy_sub_parallel_olim(
             rad      += dfac      * srcfunc # for getting <S>
             rad_olim += dfac_olim * srcfunc
             jfact[      j] += dfac      * ray_area
-            jfact_olims[j] += dfac_olim * ray_area
+            jfact_olim[j] += dfac_olim * ray_area
             # note down the largest contributor
-            if dfac_olim > dfac_max_tmp:
-                dfac_max_tmp = dfac_olim
+            if dfac > dfac_max_tmp:
+                dfac_max_tmp = dfac
                 ind = pts_order[j]
 
         rads[ i] = rad
-        olims[i] = rad_olim
+        rads_olim[i] = rad_olim
         indes[i] = ind
         if rad > 0: contr[i] = dfac_max_tmp / fac  # dans_max_tmp / rad
-        pones[i] = fac
+        # pones[i] = fac
 
-    return rads, olims, pones, ptaus, indes, contr, jfact, jfact_olims, estis
+    return rads, rads_olim, phkcs, pphzs, indes, contr, jfact, jfact_olim, estis
 
 
-# In[7]:
+# In[ ]:
 
 
 # integrate with error estiamtes
@@ -494,21 +509,11 @@ def integrate_along_rays_gridxy(
     rel_tol     : float = 1e-16,
     nsample_pp  : int   = 1000,
     z_olim_kc   : float = 1.152,
+    photosphere_tau: float = 2./3.,
     sdf_kdtree  : None|kdtree.KDTree = None,
     xyzs_names_list : list = ['x', 'y', 'z'],
     verbose     : int = 3,
-) -> tuple[
-    float,    # lum
-    float,    # lum_err
-    npt.NDArray[np.float64],    # rads
-    npt.NDArray[np.float64],    # pones
-    npt.NDArray[np.float64],    # ptaus
-    npt.NDArray[np.int64  ],    # indes
-    npt.NDArray[np.float64],    # contr
-    npt.NDArray[np.int64  ],    # pts_order_used
-    npt.NDArray[np.float64],    # jfact_used - 'j' for j-th particle;
-    # 'used' means the particles (in the order_used list) that actually participated in the calculation
-]:
+):
     """Backward integration of source functions along a grided ray (traced backwards), weighted by optical depth.
     ---------------------------------------------------------------------------
 
@@ -575,7 +580,9 @@ def integrate_along_rays_gridxy(
 
     Returns
     -------
-    lum, lum_err, rads, pones, ptaus, indes, contr, jused, jfact_used
+    lum, lum_err, rads, jfact_used,
+    lum_olim, lum_err_olim, rads_olim, jfact_olim_used,
+    estis, phkcs, pphzs, indes, contr, pts_order_used
 
     rads: np.ndarray
         Radiance (i.e. specific intensities) for each ray.
@@ -624,22 +631,22 @@ def integrate_along_rays_gridxy(
 
     # get used particles indexes
     if parallel:
-        rads, olims, pones, ptaus, indes, contr, jfact, jfact_olims, estis = _integrate_along_rays_gridxy_sub_parallel_olim(
+        rads, rads_olim, phkcs, pphzs, indes, contr, jfact, jfact_olim, estis = _integrate_along_rays_gridxy_sub_parallel_olim(
             pts_ordered, hs_ordered, mkappa_div_h2_ordered, srcfuncs_ordered,
-            rays_xy, ray_areas, kernel_rad, kernel_col, kernel_csz, kernel.w,
-            pts_order, rel_tol=rel_tol, nsample_pp=nsample_pp, z_olim_kc=z_olim_kc)
+            rays_xy, ray_areas, kernel_rad, kernel_col, kernel_csz, kernel.w, pts_order,
+            rel_tol=rel_tol, nsample_pp=nsample_pp, z_olim_kc=z_olim_kc, photosphere_tau=photosphere_tau)
     else:
         raise NotImplementedError("parallel=False version of this function not yet implemented.")
 
     jused = np.where(jfact)
     jfact_used = jfact[jused]
-    jfact_olims_used = jfact_olims[jused]
+    jfact_olim_used = jfact_olim[jused]
     pts_order_used = pts_order[jused]
 
     lum  = 4 * pi * (rads * ray_areas).sum()
     lum2 = 4 * pi * (srcfuncs_ordered[jused] * jfact_used).sum()
-    lum_olim  = 4 * pi * (olims * ray_areas).sum()
-    lum_olim2 = 4 * pi * (srcfuncs_ordered[jused] * jfact_olims_used).sum()
+    lum_olim  = 4 * pi * (rads_olim * ray_areas).sum()
+    lum_olim2 = 4 * pi * (srcfuncs_ordered[jused] * jfact_olim_used).sum()
     say('debug', None, verbose,
         f"{lum = }, {lum2 = }    (code unit)",
         f"{lum_olim = }, {lum_olim2 = }    (code unit)",
@@ -682,11 +689,14 @@ def integrate_along_rays_gridxy(
         srcfuncs_err_used = srcfuncs_err[pts_order_used]
         # pres_used = np.zeros(len(jused), dtype=bool)
 
-    dLs_used = None
-    lum_err = 4 * pi * (
-        ((srcfuncs_err_used * jfact_olims_used)**2).sum()    # uncertainty from normal inside particles
-        + (srcfuncs_ordered[jused] * (jfact_used - jfact_olims_used) ).sum()**2    # uncertainty from outermost particles
+    lum_err = 4 * pi * (((srcfuncs_err_used * jfact_used)**2).sum())**0.5
+    lum_err_olim = 4 * pi * (
+        ((srcfuncs_err_used * jfact_olim_used)**2).sum()    # uncertainty from normal inside particles
+        + (srcfuncs_ordered[jused] * (jfact_used - jfact_olim_used)).sum()**2    # uncertainty from outermost particles
     )**0.5
+
+    # number of particles before photosphere (based on column kernel) per pixel
+    pphns = phkcs / AVG_KC_PP
 
     if is_verbose(verbose, 'info'):
         nused = len(jfact_used)
@@ -694,17 +704,23 @@ def integrate_along_rays_gridxy(
             f"{nused} particles actually participated calculation",
             f"({int(nused/npart*10000)/100.}% of all particles,",
             f"average {int(nused/nray*100)/100.} per ray.)\n",
-            f"overall resolution {jfact_olims_used.sum() / np.max(jfact_olims_used) = :.1f}" if nused else "",
+            f"Photosphere resolution {np.average(pphns) = }, {np.std(pphns) = }\n",
+            f"overall resolution {jfact_used.sum() / np.max(jfact_used) = :.1f}\n" if nused else "",
+            f"overall resolution (olim) {jfact_olim_used.sum() / np.max(jfact_olim_used) = :.1f}\n" if nused else "",
             # f"Among which, {np.count_nonzero(pres_used)} are poorly resolved (less than 8 neighbours with higher z))\n",
             sep=' ')
 
 
-    return lum_olim, lum_err, olims, pones, ptaus, indes, contr, pts_order_used, jfact_olims_used, estis
+    return (
+        lum, lum_err, rads, jfact_used,
+        lum_olim, lum_err_olim, rads_olim, jfact_olim_used,
+        estis, pphns, pphzs, indes, contr, pts_order_used
+    )
 
 
 # ### rays grid generation
 
-# In[8]:
+# In[ ]:
 
 
 def get_xy_grids_of_rays(
@@ -812,7 +828,7 @@ def get_xy_grids_of_rays(
 
 # ### Plotting
 
-# In[9]:
+# In[ ]:
 
 
 def plot_imshow(
@@ -904,7 +920,7 @@ def plot_imshow(
 
 # ### Error estimation
 
-# In[10]:
+# In[ ]:
 
 
 def get_sph_neighbours(
@@ -939,7 +955,7 @@ def get_sph_neighbours(
     return dists[indices_indices], indices[indices_indices]
 
 
-# In[11]:
+# In[ ]:
 
 
 # sph error estimation
@@ -1054,7 +1070,7 @@ def get_sph_error(
 
 # ### Spectrum Generation (Gray Opacity)
 
-# In[12]:
+# In[ ]:
 
 
 # spectrum generation
@@ -1123,7 +1139,7 @@ def L_wav_nb(
 # 
 # .
 
-# In[13]:
+# In[ ]:
 
 
 do_debug = False
@@ -1136,7 +1152,7 @@ do_debug = False
 # .
 # 
 
-# In[23]:
+# In[ ]:
 
 
 if __name__ == '__main__' and not do_debug:
@@ -1156,20 +1172,33 @@ if __name__ == '__main__' and not do_debug:
                 'times': np.full(len(file_indexes), np.nan) * units.yr,
                 'lums' : np.full(len(file_indexes), np.nan) * units.Lsun,
                 'lums_err': np.full(len(file_indexes), np.nan) * units.Lsun,
-                'areas': np.full(len(file_indexes), np.nan) * units.au**2,
+                'lums_olim' : np.full(len(file_indexes), np.nan) * units.Lsun,
+                'lums_err_olim': np.full(len(file_indexes), np.nan) * units.Lsun,
+                'Teffs'  : np.full(len(file_indexes), np.nan) * units.K,
+                'Aphs_xy': np.full(len(file_indexes), np.nan) * units.au**2,
+                'Rphs_z' : np.full(len(file_indexes), np.nan) * units.au,
                 # no of particles at the photosphere - lower bound (weighted average per pixel, weighted by lums contribution)
                 # i.e. how resolved the photosphere is
                 'N_res': np.full(len(file_indexes), -1) * units.dimensionless_unscaled,
+                'Nphs_kcs': np.full(len(file_indexes), -1) * units.dimensionless_unscaled,
                 'wavlens': wavlens,
                 'L_wavs': np.full((len(file_indexes), len(wavlens)), np.nan) * (units.Lsun/units.angstrom),
+                'L_wavs_olim': np.full((len(file_indexes), len(wavlens)), np.nan) * (units.Lsun/units.angstrom),
+                'params': {'PHOTOSPHERE_TAU': PHOTOSPHERE_TAU, 'z_olim_kc': z_olim_kc, **params},
                 '_meta_': {
                     'lums' : { 'Description': "Luminosity.", },
-                    'areas': { 'Description': (
-                        "Visible size of the simulated object." +
-                        "(i.e. pixel * (area per pixel) * (tau if tau<1 else 1)"), },
+                    'lums_olim' : { 'Description': "Luminosity, but ignoring source function of particles outside the surface"
+                                    "(defined by summed column kernel kcs < z_olim_kc.", },
+                    'Aphs_xy': { 'Description': (
+                        "Visible size of the simulated object (i.e. pixel * (area per pixel) if tau > PHOTOSPHERE_TAU)."), },
+                    'Rphs_z': { 'Description': (
+                        "Visible size of the simulated object (i.e. pixel * (area per pixel))."), },
                     'N_res': { 'Description': (
-                            "no of particles at the photosphere - lower bound" +
+                            "no of particles contributed for each ray - lower bound"
                             "(weighted average per pixel, weighted by lums contribution per pixel)"), },
+                    'Nphs_kcs': { 'Description': (
+                            "no of particles above the photosphere"
+                            "Summed column kernel divided by expected average column kernel per particle"), },
                 },
             } for xyzs in xyzs_list
         }
@@ -1216,12 +1245,15 @@ if __name__ == '__main__' and not do_debug:
                     # do integration without error estimation
                     srcfuncs = np.array(srcfuncs)
                     srcfuncs_err = None # ask to re-calc below
-                    ans   = integrate_along_rays_gridxy(
+                    (
+                        lum, lum_err, rads, jfact_used,
+                        lum_olim, lum_err_olim, rads_olim, jfact_olim_used,
+                        estis, pphns, pphzs, indes, contr, pts_order_used,
+                    ) = integrate_along_rays_gridxy(
                         sdf, srcfuncs, srcfuncs_err, rays, ray_areas,
-                        nsample_pp=nsample_pp,
+                        nsample_pp=nsample_pp, z_olim_kc=z_olim_kc, photosphere_tau=PHOTOSPHERE_TAU,
                         xyzs_names_list=xyzs_names_list, parallel=True, verbose=verbose,
                     )
-                    lum, lum_err, rads, areas_p, taus, inds, contr, pts_order_used, jfact_used, estis = ans
 
 
                     # record time used
@@ -1232,46 +1264,41 @@ if __name__ == '__main__' and not do_debug:
 
                     lum     = set_as_quantity(lum,     mpdf.units['lum']).to(units.Lsun)
                     lum_err = set_as_quantity(lum_err, mpdf.units['lum']).to(units.Lsun)
+                    lum_olim     = set_as_quantity(lum_olim,     mpdf.units['lum']).to(units.Lsun)
+                    lum_err_olim = set_as_quantity(lum_err_olim, mpdf.units['lum']).to(units.Lsun)
                     print(f"\n{job_nickname}_{file_index:05d}_{xyzs}:\n\n\t{lum = :.3f}, {lum_err = :.3f}\n")
                     print(f"Time = {mpdf.get_time(unit=units.yr):.2f}\n")
 
 
                     # SEDs
                     Ts      = set_as_quantity(sdf['T'].iloc[pts_order_used], mpdf.units['temp']).cgs
-                    Aeffjs  = set_as_quantity(jfact_used, mpdf.units['dist']**2).cgs
-                    L_wavs  = L_wav_nb(wavlens.cgs.value, Ts.cgs.value, Aeffjs.cgs.value)
-                    L_wavs *= units.erg / units.s / units.cm
-                    L_wavs  = L_wavs.to(units.Lsun / units.angstrom)
+                    Aeffjs      = set_as_quantity(jfact_used,      mpdf.units['dist']**2).cgs
+                    Aeffjs_olim = set_as_quantity(jfact_olim_used, mpdf.units['dist']**2).cgs
+                    L_wavs      = L_wav_nb(wavlens.cgs.value, Ts.cgs.value, Aeffjs.cgs.value     ) * (units.erg/units.s/units.cm)
+                    L_wavs_olim = L_wav_nb(wavlens.cgs.value, Ts.cgs.value, Aeffjs_olim.cgs.value) * (units.erg/units.s/units.cm)
+                    L_wavs      = L_wavs.to(     units.Lsun / units.angstrom)
+                    L_wavs_olim = L_wavs_olim.to(units.Lsun / units.angstrom)
 
                     L_int = np.trapezoid(L_wavs, wavlens).to(units.Lsun)
-                    print(f"{L_int = }\n{(L_int/lum-1.).to(units.percent) = }\n")
+                    L_int_olim = np.trapezoid(L_wavs_olim, wavlens).to(units.Lsun)
+                    print(f"{L_int      = :.3f} (rel err {(L_int/lum-1.).to(units.percent):.3f})\n")
+                    print(f"{L_int_olim = :.3f} (rel err {(L_int_olim/lum_olim-1.).to(units.percent):.3f})\n")
                     print()
 
 
-                    rads  = (rads * mpdf.units['sigma_sb'] * mpdf.units['temp']**4 / units.sr).cgs
-                    inds *= units.dimensionless_unscaled
+                    rads      = (rads      * mpdf.units['sigma_sb'] * mpdf.units['temp']**4 / units.sr).cgs
+                    rads_olim = (rads_olim * mpdf.units['sigma_sb'] * mpdf.units['temp']**4 / units.sr).cgs
+                    indes *= units.dimensionless_unscaled
                     contr = 100 * contr * units.percent
                     lum1  = ((4 * pi * units.sr) * (rads * areas_u)).sum().to(units.solLum)
-                    print(    f"Lum err       : {lum_err = :12.2f}" +
-                          f"    (rel err  = {(lum_err / lum1).to(units.percent): 6.2f})")
-                    print(    f"Lum           : {lum1    = :12.2f}")
+                    print(f"Lum    : {lum1    = :12.2f} +/- {lum_err     :12.2f} ({(lum_err / lum1).to(units.percent): 6.2f})")
+                    print(f"Low lim: {lum_olim= :12.2f} +/- {lum_err_olim:12.2f} ({(lum_err_olim/lum_olim).to(units.percent): 6.2f})")
                     estis  = (estis * mpdf.units['sigma_sb'] * mpdf.units['temp']**4 / units.sr).cgs
                     lume = ((4 * pi * units.sr) * (estis * areas_u)).sum().to(units.solLum)
-                    print(f"Old estimation: {lume    = :12.2f}" +
+                    print(f"Old est: {lume    = :12.2f}" +
                           f"    (rel diff = {(2 * (lum1 - lume) / (lum1 + lume)).to(units.percent):+6.2f})")
                     print()
 
-                    # Aeffis= areas_p * areas_u
-                    # area  = Aeffis.sum()
-                    area_2= (np.where(
-                        np.isnan(taus),
-                        1.,
-                        np.where(
-                            taus > PHOTOSPHERE_TAU,
-                            1.0,
-                            0.0,
-                        )) * areas_u).sum()
-                    #anses_fft = fft.fft2(rads.reshape(no_xy).value)
 
                     try:
                         mask = np.logical_and(~np.isnan(contr), contr.value)
@@ -1281,24 +1308,48 @@ if __name__ == '__main__' and not do_debug:
                     except ZeroDivisionError:
                         N_res = 0.
 
+                    # Aeffis= pones * areas_u
+                    # area  = Aeffis.sum()
+                    Zphs  = (pphzs * mpdf.units['dist']).to(units.au)
+                    iphs = ~np.isnan(Zphs)
+                    Nphs_kcs = pphns[iphs] * units.dimensionless_unscaled
+                    Nph_kcs = np.average(Nphs_kcs)
+                    Aph_xy= (iphs * areas_u).sum()
+                    Teffs = ((rads * pi * units.sr / const.sigma_sb) ** 0.25).cgs
+                    Teffs_olim = ((rads_olim * pi * units.sr / const.sigma_sb) ** 0.25).cgs
+                    Teff = np.average(Teffs[iphs])
+                    Rph_xy = (Aph_xy/pi)**0.5
+                    Rphs_z = np.sqrt(Zphs**2 + np.sum(rays_u[:, 0, :2]**2, axis=1))
+                    Rph_z = np.average(Rphs_z[iphs])
+
+
                     if is_verbose(verbose, 'info'):
                         say('info', 'main()', verbose,
                             f"lum = {lum}",
                             # f"area (from <1>) = ({area  /areas_u.sum()*100: 5.1f}%) {area}",
-                            f"area (from tau) = ({area_2/areas_u.sum()*100: 5.1f}%) {area_2}",
-                            # f"radius (from <1>) = {(area/pi)**0.5}",
-                            f"radius (from tau) = {(area_2/pi)**0.5}",
-                            f"total possible area = {areas_u.sum()}",
-                            f"lower bound of the # of particles at photosphere, weighted avg over lum per pixels = {N_res} ",
+                            f"photosphere T = {Teff:.3f} +/- {np.std(Teffs[iphs]):.3f}",
+                            f"photosphere area = ({Aph_xy/areas_u.sum()*100: 5.1f}%) {Aph_xy:.3f}  (radius {Rph_xy:.3f})",
+                            f"photosphere radius (from z) = {Rph_z:.3f} +/- {np.std(Rphs_z[iphs]):.3f}",
+                            f"total possible area = {areas_u.sum():.3f}",
+                            f"lower bound of the # of particles for each ray, weighted avg over lum per pixels = {N_res:.3f} ",
+                            f"avg particles above photosphere (based on summed column kernel) per pixels = {Nph_kcs:.3f} ",
                         )
 
                     # save interm data
                     data = {}
                     data['lum'  ] = lum
                     data['lum_err' ] = lum_err
-                    # data['area_one'] = area
-                    data['area_tau'] = area_2
+                    data['lum_olim'  ] = lum_olim
+                    data['lum_err_olim' ] = lum_err_olim
+                    data['Rph_z'] = Rph_z
+                    data['Rph_xy'] = Rph_xy
+                    data['Aph_xy'] = Aph_xy
+                    data['Teff'] = Teff
                     data['N_res'] = N_res
+                    data['Nph_kcs'] = Nph_kcs
+                    data['Zphs'] = Zphs
+                    data['Teffs'] = Teffs
+                    data['Nphs_kcs'] = Nphs_kcs
                     data['xyzs' ] = xyzs
                     data['time' ] = mpdf.get_time()
                     data['mpdf_params'] = mpdf.params
@@ -1306,11 +1357,14 @@ if __name__ == '__main__' and not do_debug:
                     data['ray_unit_vec'] = get_ray_unit_vec(rays_u[0].value)
                     data['area_per_ray'] = areas_u[0] #areas_u
                     data['rads' ] = rads
+                    data['rads_olim' ] = rads_olim
                     data['contr'] = contr
                     data['wavlens'] = wavlens
                     data['L_wavs'] = L_wavs
+                    data['L_wavs_olim'] = L_wavs_olim
                     # data['Aeffis'] = Aeffis
                     data['Aeffjs'] = Aeffjs
+                    data['Aeffjs_olim'] = Aeffjs_olim
 
                     data['_meta_'] = {
                         'N_res': comb[job_nickname][xyzs]['_meta_']['N_res'],
@@ -1326,38 +1380,22 @@ if __name__ == '__main__' and not do_debug:
                     comb[job_nickname][xyzs]['times'][ifile] = data['time']
                     comb[job_nickname][xyzs]['lums' ][ifile] = data['lum' ]
                     comb[job_nickname][xyzs]['lums_err'][ifile] = data['lum_err']
-                    comb[job_nickname][xyzs]['areas'][ifile] = data['area_tau']
+                    comb[job_nickname][xyzs]['lums_olim' ][ifile] = data['lum_olim' ]
+                    comb[job_nickname][xyzs]['lums_err_olim'][ifile] = data['lum_err_olim']
+                    comb[job_nickname][xyzs]['Teffs'][ifile] = data['Teff']
+                    comb[job_nickname][xyzs]['Aphs_xy'][ifile] = data['Aph_xy']
+                    comb[job_nickname][xyzs]['Rphs_z'][ifile] = data['Rph_z']
                     comb[job_nickname][xyzs]['N_res'][ifile] = data['N_res']
+                    comb[job_nickname][xyzs]['Nphs_kcs'][ifile] = data['Nph_kcs']
                     comb[job_nickname][xyzs]['L_wavs'][ifile] = data['L_wavs']
-
-
-                    # plotting
-                    if False:
-                        save_label_addon=''
-                        plt.close('all')
-                        fig, ax, outfilenames = plot_imshow(
-                            no_xy, rays_u, rads, data_label="$I$",
-                            xyzs=xyzs, save_label=f"image{save_label_addon}",
-                            job_profile=job_profile, file_index=file_index, cmap='inferno', notes=data,
-                            output_dir=output_dir, verbose=verbose_loop)
-                        fig, ax, outfilenames = plot_imshow(
-                            no_xy, rays_u, inds%20, data_label="index % 20 of the most contributed",
-                            xyzs=xyzs, save_label=f"dinds{save_label_addon}",
-                            job_profile=job_profile, file_index=file_index, cmap='turbo', notes=data,
-                            output_dir=output_dir, verbose=verbose_loop)
-                        fig, ax, outfilenames = plot_imshow(
-                            no_xy, rays_u, contr, data_label="contribution fraction of the most contributed",
-                            xyzs=xyzs, save_label=f"contr{save_label_addon}",
-                            job_profile=job_profile, file_index=file_index, cmap='seismic', notes=data,
-                            output_dir=output_dir, verbose=verbose_loop)
+                    comb[job_nickname][xyzs]['L_wavs_olim'][ifile] = data['L_wavs_olim']
 
                     # debug
                     print()
                     print(f"{int(rads.size/2)-1 = }\n{rads[int(rads.size/2)-1].cgs = }")
-                    inds_active = np.logical_or(taus > PHOTOSPHERE_TAU, np.isnan(taus))
-                    print(f"{np.count_nonzero(inds_active) / taus.size * 100} % rays hit photosphere")
-                    print(f"{np.std(rads[inds_active]) / np.average(rads[inds_active]) = }")
-                    inds = np.logical_or(taus > PHOTOSPHERE_TAU, np.isnan(taus))
+                    inds = ~np.isnan(pphzs)
+                    print(f"{np.count_nonzero(inds) / pphzs.size * 100} % rays hit photosphere")
+                    print(f"{np.std(rads[inds]) / np.average(rads[inds]) = }")
                     lum_in_ph = (4*pi*units.sr*(rads[inds] * areas_u[inds]).sum()).to(units.Lsun)
                     print(f"{lum       = :.2f}\n{lum_in_ph = :.2f}    ({(lum_in_ph / lum).to(units.percent):.2f})")
 
@@ -1367,7 +1405,8 @@ if __name__ == '__main__' and not do_debug:
                     print(f"Ended: {python_time_ended.isoformat()}\nTime Used: {python_time__used}\n")
 
 
-        # save data for now
+            # save data for now
+            mupl.hdf5_dump({job_nickname: comb[job_nickname]}, f"{interm_dir}lcgen.{no_xy_txt}.{job_nickname}.tmp.hdf5", metadata)
         mupl.hdf5_dump({job_nickname: comb[job_nickname]}, f"{interm_dir}lcgen.{no_xy_txt}.{job_nickname}.hdf5", metadata)
 
     plt.close('all')

@@ -32,6 +32,10 @@ unitsOut = {
 
 SPEC_DIST = 10 * units.parsec
 PHOTOSPHERE_TAU = 2./3. #np.log(2)
+# average column kernel per particle
+# == scipy.integrate.quad(lambda q_xy: 0.5*w_col(q_xy,3)*q_xy, 0., 2.,)
+AVG_KC_PP = 0.07957756012279878
+
 
 
 # script input parameters
