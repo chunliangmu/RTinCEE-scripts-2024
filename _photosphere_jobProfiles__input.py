@@ -347,7 +347,7 @@ JOB_PROFILES_LIST = (
             'mu': 2.381,
         },
         'name': f"Non-dusty 1.7{Msun_str}",
-        'nickname': '2m_2022',
+        'nickname': '2m2022',
         #'fmt': '--',
         'color': 'orange',
     },
