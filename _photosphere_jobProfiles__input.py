@@ -58,7 +58,7 @@ JOB_PROFILES_LIST = (
     {
         'raw_dir' : '../raw/clmu_4mdd/',
         'file_prefix': 'lumo',
-        'file_indexes': np.concatenate((np.arange(0, 1400+1, 10), np.arange(1400, 1600+1, 100))),
+        'file_indexes': np.arange(0, 2000+1, 10),
         'plot_title_suffix': f" for 3.7{Msun_str} star (donor only, forced MESA profile)",
         'ieos': 10,
         'params': {
@@ -73,7 +73,7 @@ JOB_PROFILES_LIST = (
     {
         'raw_dir' : '../raw/clmu_4mddo/',
         'file_prefix': 'lumo',
-        'file_indexes': np.concatenate((np.arange(0, 1160+1, 10), np.arange(1200, 1700+1, 100))),
+        'file_indexes': np.arange(0, 2000+1, 10),
         'plot_title_suffix': f" for 3.7{Msun_str} star (donor only)",
         'ieos': 10,
         'params': {
