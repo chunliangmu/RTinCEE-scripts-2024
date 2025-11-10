@@ -32,10 +32,134 @@ unitsOut = {
 
 SPEC_DIST = 10 * units.parsec
 PHOTOSPHERE_TAU = 2./3. #np.log(2)
+# average column kernel per particle
+# == scipy.integrate.quad(lambda q_xy: 0.5*w_col(q_xy,3)*q_xy, 0., 2.,)
+AVG_KC_PP = 0.07957756012279878
+
 
 
 # script input parameters
 JOB_PROFILES_LIST = (
+    {
+        'raw_dir' : '../raw/clmu_4mdc/',
+        'file_prefix': 'lumo',
+        'file_indexes': np.arange(0, 2000+1, 10),
+        'plot_title_suffix': f" for 3.7{Msun_str} star with forced MESA profile",
+        'ieos': 10,
+        'params': {
+            'X' : 0.686,
+            'Z' : 0.024,
+            'mu': 2.381,
+        },
+        'name': f"Cut 3.7{Msun_str}",
+        'nickname': '4mdc',
+        'color': 'blue',
+    },
+    {
+        'raw_dir' : '../raw/clmu_4mdd/',
+        'file_prefix': 'lumo',
+        'file_indexes': np.arange(0, 2000+1, 10),
+        'plot_title_suffix': f" for 3.7{Msun_str} star (donor only, forced MESA profile)",
+        'ieos': 10,
+        'params': {
+            'X' : 0.686,
+            'Z' : 0.024,
+            'mu': 2.381,
+        },
+        'name': f"DonorF 3.7{Msun_str}",
+        'nickname': '4mdd',
+        'color': 'blue',
+    },
+    {
+        'raw_dir' : '../raw/clmu_4mddo/',
+        'file_prefix': 'lumo',
+        'file_indexes': np.arange(0, 2000+1, 10),
+        'plot_title_suffix': f" for 3.7{Msun_str} star (donor only)",
+        'ieos': 10,
+        'params': {
+            'X' : 0.686,
+            'Z' : 0.024,
+            'mu': 2.381,
+        },
+        'name': f"Donor 3.7{Msun_str}",
+        'nickname': '4mddo',
+        'color': 'blue',
+    },
+    {
+        'raw_dir' : '../raw/clmu_2mdh/',
+        'file_prefix': 'lumo',
+        'file_indexes': np.arange(0, 2000+1, 10),
+        'plot_title_suffix': f" for 1.7{Msun_str} star (halfway companion, forced MESA profile)",
+        'ieos': 10,
+        'params': {
+            'X' : 0.691,
+            'Z' : 0.021,
+            'mu': 2.381,
+        },
+        'name': f"Halfway 1.7{Msun_str}",
+        'nickname': '2mdh',
+        'color': 'blue',
+    },
+    {
+        'raw_dir' : '../raw/clmu_2mds/',
+        'file_prefix': 'lumo',
+        'file_indexes': np.arange(0, 2000+1, 10),
+        'plot_title_suffix': f" for 1.7{Msun_str} star (surface companion, forced MESA profile)",
+        'ieos': 10,
+        'params': {
+            'X' : 0.691,
+            'Z' : 0.021,
+            'mu': 2.381,
+        },
+        'name': f"Surface 1.7{Msun_str}",
+        'nickname': '2mds',
+        'color': 'blue',
+    },
+    {
+        'raw_dir' : '../raw/clmu_2mdc/',
+        'file_prefix': 'lumo',
+        'file_indexes': np.arange(0, 2000+1, 10),
+        'plot_title_suffix': f" for 1.7{Msun_str} star with forced MESA profile",
+        'ieos': 10,
+        'params': {
+            'X' : 0.691,
+            'Z' : 0.021,
+            'mu': 2.381,
+        },
+        'name': f"Cut 1.7{Msun_str}",
+        'nickname': '2mdc',
+        'color': 'blue',
+    },
+    {
+        'raw_dir' : '../raw/clmu_2mdd/',
+        'file_prefix': 'lumo',
+        'file_indexes': np.arange(0, 2000+1, 10),
+        'plot_title_suffix': f" for 1.7{Msun_str} star (donor only, forced MESA profile)",
+        'ieos': 10,
+        'params': {
+            'X' : 0.691,
+            'Z' : 0.021,
+            'mu': 2.381,
+        },
+        'name': f"DonorF 1.7{Msun_str}",
+        'nickname': '2mdd',
+        'color': 'blue',
+    },
+    {
+        'raw_dir' : '../raw/clmu_2mddo/',
+        'file_prefix': 'lumo',
+        'file_indexes': np.arange(0, 2000+1, 10),
+        'plot_title_suffix': f" for 1.7{Msun_str} star (donor only)",
+        'ieos': 10,
+        'params': {
+            'X' : 0.691,
+            'Z' : 0.021,
+            'mu': 2.381,
+        },
+        'name': f"Donor 1.7{Msun_str}",
+        'nickname': '2mddo',
+        'color': 'blue',
+    },
     {
         'raw_dir' : '../raw/clmu_sol/',
         'file_prefix': 'sol',
@@ -146,7 +270,7 @@ JOB_PROFILES_LIST = (
         'file_prefix': 'light',
         #'job_name': '../photosphere/luis_2md/light', # deprecated keyword- will still be added automatically later
         #'file_indexes': np.arange(0, 17600+1, 100),
-        'file_indexes': np.concatenate((np.arange(0, 5000-1, 20), np.arange(5000, 17600+1, 50))),
+        'file_indexes': np.concatenate((np.arange(0, 5000, 20), np.arange(5000, 17600+1, 50))),
         'plot_title_suffix': f" for 1.7{Msun_str} primary with Dust",
         'ieos': 10,
         'params': {
@@ -223,7 +347,7 @@ JOB_PROFILES_LIST = (
             'mu': 2.381,
         },
         'name': f"Non-dusty 1.7{Msun_str}",
-        'nickname': '2m_2022',
+        'nickname': '2m2022',
         #'fmt': '--',
         'color': 'orange',
     },

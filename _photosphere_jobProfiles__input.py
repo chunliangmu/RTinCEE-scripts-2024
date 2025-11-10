@@ -41,6 +41,36 @@ AVG_KC_PP = 0.07957756012279878
 # script input parameters
 JOB_PROFILES_LIST = (
     {
+        'raw_dir' : '../raw/steve_test/',
+        'file_prefix': 'stephenTestDump',
+        'file_indexes': np.arange(0, 1, 10),
+        'plot_title_suffix': f"",
+        'ieos': 10,
+        'params': {
+            'X' : 0.74,
+            'Z' : 0.02,
+            'mu': 2.381,
+        },
+        'name': f"steve_test",
+        'nickname': 'sttt',
+        'color': 'blue',
+    },
+    {
+        'raw_dir' : '../raw/luis_4mdlowres/',
+        'file_prefix': 'binary',
+        'file_indexes': np.arange(0, 17600+1, 100),
+        'plot_title_suffix': f" for 3.7{Msun_str} star with lower resolution",
+        'ieos': 10,
+        'params': {
+            'X' : 0.686,
+            'Z' : 0.024,
+            'mu': 2.381,
+        },
+        'name': f"Dusty 3.7{Msun_str} Low Resolution",
+        'nickname': '4mdlowres',
+        'color': 'blue',
+    },
+    {
         'raw_dir' : '../raw/clmu_4mdc/',
         'file_prefix': 'lumo',
         'file_indexes': np.arange(0, 2000+1, 10),
