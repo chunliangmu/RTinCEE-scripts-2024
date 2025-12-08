@@ -30,7 +30,7 @@ unitsOut = {
     #'flux_wav' : (units.erg / units.s / units.cm**2) / units.angstrom,
 }
 
-SPEC_DIST = 10 * units.parsec
+SPEC_DIST = 1 * units.kpc
 PHOTOSPHERE_TAU = 2./3. #np.log(2)
 # average column kernel per particle
 # == scipy.integrate.quad(lambda q_xy: 0.5*w_col(q_xy,3)*q_xy, 0., 2.,)
