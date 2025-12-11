@@ -9,6 +9,7 @@ from clmuphantomlib.units_util import DEFAULT_UNITS
 
 # script input parameters
 
+output_dir += '/20240122_singleRayProperties_(with-mesa-opacity)/'
 verbose = 3
 
 
