@@ -14,9 +14,12 @@ unitsOut['flux_wav'] = (units.erg / units.s / units.cm**2) / units.angstrom
 
 verbose = 6
 
-job_nicknames = ['2md', '4md'] # '2mdd', '2mdc', '2mds', '2mdh',]#, 4m', '2m_2022', '2md']
+job_nicknames = ['2md'] # '2mdd', '2mdc', '2mds', '2mdh',]#, 4m', '2m_2022', '2md']
+for nn in job_nicknames:    # temp
+    a = JOB_PROFILES_DICT[nn]['file_indexes']
+    JOB_PROFILES_DICT[nn]['file_indexes'] = a[np.logical_and(a > 12600, a % 400 == 0)]
 xyzs_list  = ['xyz', 'xzy', 'yzx']
-no_xy=(64, 64)
+no_xy=(256, 256)
 no_xy_txt = 'x'.join([f'{i}' for i in no_xy])
 output_dir = f'../fig/20240222_LCGen/{no_xy_txt}/'
 # interm_dir += 'olim_'
