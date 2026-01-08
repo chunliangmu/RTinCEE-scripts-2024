@@ -14,7 +14,7 @@ unitsOut['flux_wav'] = (units.erg / units.s / units.cm**2) / units.angstrom
 
 verbose = 6
 
-job_nicknames = ['2md'] # '2mdd', '2mdc', '2mds', '2mdh',]#, 4m', '2m_2022', '2md']
+job_nicknames = ['4md'] # '2mdd', '2mdc', '2mds', '2mdh',]#, 4m', '2m_2022', '2md']
 # for nn in job_nicknames:    # temp
 #     a = JOB_PROFILES_DICT[nn]['file_indexes']
 #     JOB_PROFILES_DICT[nn]['file_indexes'] = a[np.logical_and(a > 12600, a % 400 == 0)]
