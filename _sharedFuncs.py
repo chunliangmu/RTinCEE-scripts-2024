@@ -125,7 +125,7 @@ def mpdf_read(
             mpdf.data['gas']['kappaDust'],
         )
         mpdf.data['gas']['kappa'] = np.where(
-            mpdf.data['gas']['T'] < T_cond_oxy,
+            mpdf.data['gas']['T'] < T_cond_oxy.to_value(mpdf.units['temp']),
             mpdf.data['gas']['kappa'],
             mpdf.data['gas']['kappaDust'] + kappa_mesa.to_value(unit_opacity),
         )
@@ -143,7 +143,7 @@ def mpdf_read(
         
         kappa_mesa = eos_opacity.get_kappa(mpdf.get_val('rho'), mpdf.get_val('T'), do_extrap=do_extrap)
         mpdf.data['gas']['kappa'] = np.where(
-            mpdf.data['gas']['T'] < T_cond_oxy,
+            mpdf.data['gas']['T'] < T_cond_oxy.to_value(mpdf.units['temp']),
             kappa_gas.to_value( mpdf.units['opacity']),
             kappa_mesa.to_value(mpdf.units['opacity']),
         )
