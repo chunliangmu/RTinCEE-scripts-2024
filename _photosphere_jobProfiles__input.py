@@ -41,6 +41,21 @@ AVG_KC_PP = 0.07957756012279878
 # script input parameters
 JOB_PROFILES_LIST = (
     {
+        'raw_dir' : '../raw/clmu_2ma/',
+        'file_prefix': 'star',
+        'file_indexes': np.concatenate(([1], np.arange(10, 130+1, 10))),
+        'plot_title_suffix': f" star only",
+        'ieos': 10,
+        'params': {
+            'X' : 0.691,
+            'Z' : 0.021,
+            'mu': 2.381,
+        },
+        'name': f"Apr 1.7{Msun_str}",
+        'nickname': '2ma',
+        'color': 'blue',
+    },
+    {
         'raw_dir' : '../raw/steve_test/',
         'file_prefix': 'stephenTestDump',
         'file_indexes': np.arange(0, 1, 10),

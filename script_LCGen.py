@@ -45,11 +45,6 @@ import sarracen
 import itertools
 from scipy import integrate, fft
 from scipy.spatial import kdtree
-# fix weird moviepy cannot find my ffmpeg exe error
-try: from moviepy import editor
-except RuntimeError: import os; os.environ["IMAGEIO_FFMPEG_EXE"] = "/usr/bin/ffmpeg"
-#from moviepy.editor import ImageSequenceClip
-#from os import path
 
 from datetime import datetime, UTC
 now_utc = lambda: datetime.now(UTC)
