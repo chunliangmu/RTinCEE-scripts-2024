@@ -41,18 +41,18 @@ AVG_KC_PP = 0.07957756012279878
 # script input parameters
 JOB_PROFILES_LIST = (
     {
-        'raw_dir' : '../raw/clmu_2ma/',
+        'raw_dir' : '../raw/clmu_2iaf/bugfix87d8/',
         'file_prefix': 'star',
-        'file_indexes': np.concatenate(([1], np.arange(10, 130+1, 10))),
+        'file_indexes': np.arange(0, 1, 10),
         'plot_title_suffix': f" star only",
-        'ieos': 10,
+        'ieos': 2,
         'params': {
             'X' : 0.691,
             'Z' : 0.021,
-            'mu': 2.381,
+            'mu': 1.25,
         },
         'name': f"Apr 1.7{Msun_str}",
-        'nickname': '2ma',
+        'nickname': '2iaf',
         'color': 'blue',
     },
     {
