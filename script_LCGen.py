@@ -85,7 +85,7 @@ NPROCESSES = 1 if cpu_count() is None else max(cpu_count(), 1)
 from script_LCGen__input import (
     verbose, verbose_loop,
     interm_dir, output_dir, JOB_PROFILES_DICT, job_nicknames, xyzs_list, no_xy, no_xy_txt,
-    unitsOut, PHOTOSPHERE_TAU, AVG_KC_PP, wavlens, use_Tscales, nsample_pp, z_olim_kc,
+    unitsOut, PHOTOSPHERE_TAU, AVG_KC_PP, wavlens, use_Tscales, nsample_pp, z_olim_kc, do_extrap_eos_opacity,
 )
 from _sharedFuncs import mpdf_read
 
@@ -1219,8 +1219,10 @@ if __name__ == '__main__' and not do_debug:
         for ifile, file_index in enumerate(file_indexes):
             # init
 
-            mpdf = mpdf_read(job_name, file_index, eos_opacity, params=params, reset_xyz_by='R1', use_Tscales=use_Tscales, verbose=verbose)
-            mpdf.calc_sdf_params(['R1'])
+            mpdf = mpdf_read(
+                job_name, file_index, eos_opacity, params=params,
+                reset_xyz_by='R1', use_Tscales=use_Tscales, do_extrap=do_extrap_eos_opacity, verbose=verbose)
+            # mpdf.calc_sdf_params(['R1'])
             sdf  = mpdf.data['gas']
             # kernel = sdf.kernel
             # kernel_rad = float(kernel.get_radius())

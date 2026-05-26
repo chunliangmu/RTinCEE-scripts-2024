@@ -14,17 +14,18 @@ unitsOut['flux_wav'] = (units.erg / units.s / units.cm**2) / units.um
 
 verbose = 6
 
-job_nicknames = ['2iaf'] # '2mdd', '2mdc', '2mds', '2mdh',]#, 4m', '2m_2022', '2md']
+job_nicknames = ['sttt'] # '2mdd', '2mdc', '2mds', '2mdh',]#, 4m', '2m_2022', '2md']
 # for nn in job_nicknames:    # temp
 #     a = JOB_PROFILES_DICT[nn]['file_indexes']
 #     JOB_PROFILES_DICT[nn]['file_indexes'] = a[np.logical_and(a > 12600, a % 400 == 0)]
 xyzs_list  = ['xyz', 'xzy', 'yzx']
-no_xy=(64, 64)
+no_xy=(256, 256)
 no_xy_txt = 'x'.join([f'{i}' for i in no_xy])
 output_dir = f'../fig/20240222_LCGen/{no_xy_txt}/'
 # interm_dir += 'olim_'
 verbose_loop = 0
 
+do_extrap_eos_opacity : bool  = True   # switch for extrapolation of MESA opacity
 nsample_pp  : int   = 1000   # no of sample points per particle for integration
 z_olim_kc   : float = 1.152  # col kernel limit for when srcfunc began to count for olim
 
@@ -67,8 +68,9 @@ Ts_ph_init['2mdnr'] = 3227*units.K
 # - SED settings -
 # freq: minimum range 1e9~1e20 Hz (covering microwave to x-ray)
 # wavelen 1e-11m ~ 0.1m
-#wavlens = (np.logspace(-10, 0, 10000) * units.m).cgs   # default (broad)
-wavlens = (np.logspace(-2, 5., 10000) * units.um).cgs   # default
+# wavlens = (np.logspace(-10, 0, 10000) * units.m).cgs   # default (broad)
+# wavlens = (np.logspace(-2, 5., 10000) * units.um).cgs   # default
+wavlens = (np.logspace(-5, 5., 10000) * units.um).cgs   # test for steven's dump (sttt)
 #wavlens = (np.logspace(-1, 3.5, 50) * units.um).cgs  # mcfost
 
 

@@ -68,7 +68,7 @@ def mpdf_read(
     params    : dict = None,
     # ieos      : int = 10,
     reset_xyz_by: str='CoM',
-    calc_params :list=['vr', 'R1'],
+    calc_params :list=['vr'], #['vr', 'R1'],
     kappa_gas : units.Quantity = 2e-4*(units.cm**2/units.g),
     kappa_tol : units.Quantity = 1e-7*(units.cm**2/units.g),
     T_cond_oxy: units.Quantity = 1450 * units.K,

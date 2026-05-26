@@ -58,7 +58,7 @@ JOB_PROFILES_LIST = (
     {
         'raw_dir' : '../raw/steve_test/',
         'file_prefix': 'stephenTestDump',
-        'file_indexes': np.arange(0, 1, 10),
+        'file_indexes': np.arange(1, 2, 10),
         'plot_title_suffix': f"",
         'ieos': 10,
         'params': {
