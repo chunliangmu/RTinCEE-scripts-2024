@@ -66,7 +66,6 @@ def mpdf_read(
     eos_opacity: None|EoS_MESA_opacity = None,
     mpdf: None|MyPhantomDataFrames = None,
     params    : dict = None,
-    # ieos      : int = 10,
     reset_xyz_by: str='CoM',
     calc_params :list=['vr'], #['vr', 'R1'],
     kappa_gas : units.Quantity = 2e-4*(units.cm**2/units.g),
@@ -90,6 +89,10 @@ def mpdf_read(
 
     if eos_opacity is None:
         eos_opacity = get_eos_opacity(ieos=mpdf.ieos, params=params)
+
+    if mpdf.ieos == 2:
+        mpdf.data['gas']['pressure'] = (mpdf.gamma - 1) * mpdf.data['gas']['rho'] * mpdf.data['gas']['u']
+        mpdf.data['gas']['T'] = mpdf.data['gas']['pressure'] / mpdf.data['gas']['rho'] * params['mu'] * mpdf.const['m_p'] / mpdf.const['k_B']
 
     try:
         temp_key = {'T', 'temperature', 'Tdust'}.intersection(mpdf.data['gas'].keys()).pop()
