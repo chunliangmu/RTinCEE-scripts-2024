@@ -1,5 +1,7 @@
 # Scripts for Mu et al., 2026
 
+[![DOI](https://zenodo.org/badge/804688701.svg)](https://doi.org/10.5281/zenodo.22913417)
+
 Scripts for the paper *[Dust Formation in Common Envelope Binary Interactions — III. Lightcurves](https://doi.org/10.48550/arXiv.2606.26495)*.
 
 > Author: Chunliang Mu  
