@@ -41,9 +41,9 @@ AVG_KC_PP = 0.07957756012279878
 # script input parameters
 JOB_PROFILES_LIST = (
     {
-        'raw_dir' : '../raw/clmu_2ma/',
-        'file_prefix': 'lumo',
-        'file_indexes': np.arange(0, 2+1, 20),
+        'raw_dir' : '../raw/clmu_2ma/mfrac-p2-08/',
+        'file_prefix': 'star',
+        'file_indexes': np.arange(0, 1100+1, 10),
         'plot_title_suffix': f"",
         'ieos': 10,
         'params': {
@@ -51,14 +51,14 @@ JOB_PROFILES_LIST = (
             'Z' : 0.021,
             'mu': 2.381,
         },
-        'name': f"APR non-dusty 1.7{Msun_str}",
-        'nickname': '2ma',
+        'name': f"APR 1.7{Msun_str}  8 lvs",  # non-dusty
+        'nickname': '2ma-star--mfrac-p2-08',
         'color': 'blue',
     },
     {
-        'raw_dir' : '../raw/clmu_2ma/',
+        'raw_dir' : '../raw/clmu_2ma/mfrac-p2-10/',
         'file_prefix': 'star',
-        'file_indexes': np.arange(0, 420+1, 20),
+        'file_indexes': np.arange(0, 850+1, 10),
         'plot_title_suffix': f"",
         'ieos': 10,
         'params': {
@@ -66,10 +66,85 @@ JOB_PROFILES_LIST = (
             'Z' : 0.021,
             'mu': 2.381,
         },
-        'name': f"APR non-dusty 1.7{Msun_str} single",
-        'nickname': '2ma-star',
+        'name': f"APR 1.7{Msun_str} 10 lvs",  # non-dusty 
+        'nickname': '2ma-star--mfrac-p2-10',
         'color': 'blue',
     },
+    {
+        'raw_dir' : '../raw/clmu_2ma/mfrac-p2-12/',
+        'file_prefix': 'star',
+        'file_indexes': np.arange(0, 860+1, 10),
+        'plot_title_suffix': f"",
+        'ieos': 10,
+        'params': {
+            'X' : 0.691,
+            'Z' : 0.021,
+            'mu': 2.381,
+        },
+        'name': f"APR 1.7{Msun_str} 12 lvs",  # non-dusty
+        'nickname': '2ma-star--mfrac-p2-12',
+        'color': 'blue',
+    },
+    {
+        'raw_dir' : '../raw/clmu_2ma/no-apr--np1376256/',
+        'file_prefix': 'star',
+        'file_indexes': np.arange(0, 700+1, 10),
+        'plot_title_suffix': f"",
+        'ieos': 10,
+        'params': {
+            'X' : 0.691,
+            'Z' : 0.021,
+            'mu': 2.381,
+        },
+        'name': f"No APR 1.7{Msun_str} high res",  # non-dusty
+        'nickname': '2m-star--np1376256',
+        'color': 'blue',
+    },
+    {
+        'raw_dir' : '../raw/clmu_2ia-test-mini/no-apr--np172032/',
+        'file_prefix': 'stel',
+        'file_indexes': np.arange(0, 4000+1, 100),
+        'plot_title_suffix': f"",
+        'ieos': 10,
+        'params': {
+            'X' : 0.691,
+            'Z' : 0.021,
+            'mu': 2.381,
+        },
+        'name': f"No APR 1.7{Msun_str} low res",   # non-dusty
+        'nickname': '2m-star--np172032',
+        'color': 'blue',
+    },
+    # {
+    #     'raw_dir' : '../raw/clmu_2ma/',
+    #     'file_prefix': 'lumo',
+    #     'file_indexes': np.arange(0, 2+1, 20),
+    #     'plot_title_suffix': f"",
+    #     'ieos': 10,
+    #     'params': {
+    #         'X' : 0.691,
+    #         'Z' : 0.021,
+    #         'mu': 2.381,
+    #     },
+    #     'name': f"APR non-dusty 1.7{Msun_str}",
+    #     'nickname': '2ma',
+    #     'color': 'blue',
+    # },
+    # {
+    #     'raw_dir' : '../raw/clmu_2ma/',
+    #     'file_prefix': 'star',
+    #     'file_indexes': np.arange(0, 420+1, 20),
+    #     'plot_title_suffix': f"",
+    #     'ieos': 10,
+    #     'params': {
+    #         'X' : 0.691,
+    #         'Z' : 0.021,
+    #         'mu': 2.381,
+    #     },
+    #     'name': f"APR non-dusty 1.7{Msun_str} single",
+    #     'nickname': '2ma-star',
+    #     'color': 'blue',
+    # },
     {
         'raw_dir' : '../raw/clmu_2iaf/bugfix87d8/',
         'file_prefix': 'lumo',

@@ -66,6 +66,7 @@ def mpdf_read(
     eos_opacity: None|EoS_MESA_opacity = None,
     mpdf: None|MyPhantomDataFrames = None,
     params    : dict = None,
+    ieos      : int = None,    # overriding the dump ieos.
     reset_xyz_by: str='CoM',
     calc_params :list=['vr'], #['vr', 'R1'],
     kappa_gas : units.Quantity = 2e-4*(units.cm**2/units.g),
@@ -86,6 +87,9 @@ def mpdf_read(
         mpdf = MyPhantomDataFrames()
 
     mpdf.read(job_name, file_index, reset_xyz_by=reset_xyz_by, calc_params=calc_params, verbose=verbose)
+
+    if ieos is not None:
+        mpdf.ieos = ieos
 
     if eos_opacity is None:
         eos_opacity = get_eos_opacity(ieos=mpdf.ieos, params=params)
