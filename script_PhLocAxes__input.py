@@ -3,6 +3,7 @@ Input Parameters for my scripts.
 """
 
 # imports and internal settings
+import numpy as np
 from _photosphere_jobProfiles__input import (
     output_dir, interm_dir,
     fps, unitsOut,
